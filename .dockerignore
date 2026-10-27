@@ -1,0 +1,15 @@
+.env
+.venv/
+.mypy_cache/
+.ruff_cache/
+LICENSE
+README*
+pyproject.toml
+data/
+tests/
+tgiosicons/
+__pycache__/
+.pytest_cache/
+deploy.py
+deploy.bat
+deploy.json

@@ -1,0 +1,35 @@
+[project]
+name = "emoji-studio-bot"
+version = "1.0.0"
+description = "Telegram bot: premium emoji IDs, sticker downloads, pack recoloring and 60 fps NFT gift animations"
+requires-python = ">=3.12"
+license = "MIT"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "C4", "PIE", "RET"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # кириллица и эмодзи в строках — это нормально
+
+[tool.ruff.lint.per-file-ignores]
+"app/common/i18n.py" = ["E501"]  # тексты интерфейса не переносим посреди фразы
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# aiogram помечает message/from_user/data как Optional, но в наших хендлерах их гарантируют
+# фильтры и тип апдейта (личный чат, callback от кнопки бота), поэтому здесь union-attr — шум.
+[[tool.mypy.overrides]]
+module = ["app.menu", "app.admin.handlers", "app.nft.handlers", "app.stickers.handlers.*"]
+disable_error_code = ["union-attr"]

@@ -1,0 +1,317 @@
+"""Админ-панель: статистика, рассылка, бан. Доступ — ADMIN_IDS в .env."""
+
+import asyncio
+import logging
+import time
+from contextlib import suppress
+
+from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
+from aiogram.filters import Command, Filter, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+
+from app.admin.states import AdminForm
+from app.common.i18n import t
+from app.common.icons import icons
+from app.common.storage import EVENT_KINDS, Storage
+from app.common.ui import kb, plain
+from app.config import Config
+
+log = logging.getLogger(__name__)
+router = Router()
+
+BROADCAST_DELAY = 0.05  # ~20 сообщений в секунду, ниже лимита Telegram
+_broadcast_tasks: set[asyncio.Task] = set()
+
+
+class IsAdmin(Filter):
+    async def __call__(self, event, is_admin: bool = False) -> bool:
+        return is_admin
+
+
+router.message.filter(IsAdmin())
+router.callback_query.filter(IsAdmin())
+
+
+def panel_kb(lang: str, is_owner: bool = False) -> InlineKeyboardMarkup:
+    return kb(
+        [
+            icons.button(t(lang, "btn_stats"), "stats", "primary", callback_data="adm:stats"),
+            icons.button(t(lang, "btn_broadcast"), "megaphone", "success", callback_data="adm:bc"),
+        ],
+        [
+            icons.button(t(lang, "btn_ban"), "lock", "danger", callback_data="adm:ban"),
+            icons.button(t(lang, "btn_unban"), "unlock", callback_data="adm:unban"),
+        ],
+        [icons.button(t(lang, "btn_banned_list"), "users", callback_data="adm:banned")],
+        [icons.button(t(lang, "btn_admins"), "admin", "primary", callback_data="adm:admins")] if is_owner else None,
+        [icons.button(t(lang, "btn_menu"), "home", callback_data="menu")],
+    )
+
+
+def back_kb(lang: str) -> InlineKeyboardMarkup:
+    return kb([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
+
+
+def stats_text(lang: str, s: dict) -> str:
+    langs = " · ".join(f"{code} {n}" for code, n in s["langs"].items()) or "—"
+    lines = [
+        t(lang, "stats_head"),
+        "",
+        t(lang, "stats_users", **{k: s[k] for k in ("users", "new_day", "new_week")}),
+        t(lang, "stats_active", day=s["active_day"], week=s["active_week"]),
+        t(lang, "stats_banned", banned=s["banned"], blocked=s["blocked"]),
+        t(lang, "stats_langs", langs=langs),
+        "",
+    ]
+    for kind in EVENT_KINDS:
+        day, week, total = s["events"][kind]
+        lines.append(t(lang, f"stats_{kind}", day=day, week=week, total=total))
+    lines.append(t(lang, "stats_watches", n=s["watches"]))
+    return "\n".join(lines)
+
+
+async def _edit(call: CallbackQuery, text: str, markup: InlineKeyboardMarkup) -> None:
+    with suppress(TelegramBadRequest):
+        await call.message.edit_text(text, reply_markup=markup)
+
+
+@router.message(Command("admin"))
+async def cmd_admin(message: Message, lang: str, is_owner: bool, state: FSMContext, db: Storage) -> None:
+    await state.clear()
+    s = await db.stats()
+    await message.answer(
+        t(lang, "admin_panel", users=s["users"], active=s["active_day"]), reply_markup=panel_kb(lang, is_owner)
+    )
+
+
+@router.callback_query(F.data == "admin")
+async def cb_admin(call: CallbackQuery, lang: str, is_owner: bool, state: FSMContext, db: Storage) -> None:
+    await state.clear()
+    s = await db.stats()
+    await _edit(call, t(lang, "admin_panel", users=s["users"], active=s["active_day"]), panel_kb(lang, is_owner))
+    await call.answer()
+
+
+@router.message(Command("stats"))
+async def cmd_stats(message: Message, lang: str, db: Storage) -> None:
+    await message.answer(stats_text(lang, await db.stats()), reply_markup=back_kb(lang))
+
+
+@router.callback_query(F.data == "adm:stats")
+async def cb_stats(call: CallbackQuery, lang: str, db: Storage) -> None:
+    markup = kb(
+        [icons.button(t(lang, "btn_refresh"), "refresh", callback_data="adm:stats")],
+        [icons.button(t(lang, "btn_back"), "back", callback_data="admin")],
+    )
+    await _edit(call, stats_text(lang, await db.stats()), markup)
+    await call.answer()
+
+
+# ---------- рассылка ----------
+
+
+@router.callback_query(F.data == "adm:bc")
+async def cb_broadcast(call: CallbackQuery, lang: str, state: FSMContext) -> None:
+    await state.set_state(AdminForm.broadcast)
+    await _edit(call, t(lang, "bc_ask"), back_kb(lang))
+    await call.answer()
+
+
+@router.message(StateFilter(AdminForm.broadcast), ~F.text.startswith("/"))
+async def on_broadcast_message(message: Message, lang: str, state: FSMContext, db: Storage) -> None:
+    await state.update_data(chat_id=message.chat.id, message_id=message.message_id)
+    targets = len(await db.broadcast_targets())
+    await message.copy_to(message.chat.id)
+    await message.answer(
+        t(lang, "bc_confirm", n=targets),
+        reply_markup=kb(
+            [icons.button(t(lang, "btn_bc_send", n=targets), "megaphone", "success", callback_data="adm:bc_go")],
+            [icons.button(t(lang, "btn_cancel"), "cross", "danger", callback_data="admin")],
+        ),
+    )
+
+
+async def broadcast(bot: Bot, db: Storage, lang: str, admin_chat: int, from_chat: int, message_id: int) -> None:
+    targets = await db.broadcast_targets()
+    status = await bot.send_message(admin_chat, t(lang, "bc_progress", done=0, total=len(targets), ok=0, fail=0))
+    ok = fail = 0
+    last = time.monotonic()
+    for index, user_id in enumerate(targets, 1):
+        for _ in range(3):
+            try:
+                await bot.copy_message(user_id, from_chat, message_id)
+                ok += 1
+                break
+            except TelegramRetryAfter as e:
+                await asyncio.sleep(e.retry_after + 1)
+            except TelegramForbiddenError:
+                await db.mark_blocked(user_id)
+                fail += 1
+                break
+            except Exception as e:
+                log.warning("Рассылка: %s не получил сообщение: %s", user_id, e)
+                fail += 1
+                break
+        if time.monotonic() - last > 3:
+            last = time.monotonic()
+            with suppress(TelegramBadRequest):
+                await status.edit_text(t(lang, "bc_progress", done=index, total=len(targets), ok=ok, fail=fail))
+        await asyncio.sleep(BROADCAST_DELAY)
+    with suppress(TelegramBadRequest):
+        await status.edit_text(t(lang, "bc_done", ok=ok, fail=fail))
+
+
+@router.callback_query(F.data == "adm:bc_go")
+async def cb_broadcast_go(call: CallbackQuery, bot: Bot, lang: str, state: FSMContext, db: Storage) -> None:
+    data = await state.get_data()
+    await state.clear()
+    if "message_id" not in data:
+        await call.answer(t(lang, "expired"), show_alert=True)
+        return
+    await call.answer()
+    with suppress(TelegramBadRequest):
+        await call.message.edit_reply_markup(reply_markup=None)
+    task = asyncio.create_task(broadcast(bot, db, lang, call.message.chat.id, data["chat_id"], data["message_id"]))
+    _broadcast_tasks.add(task)
+    task.add_done_callback(_broadcast_tasks.discard)
+
+
+# ---------- бан ----------
+
+
+@router.callback_query(F.data.in_({"adm:ban", "adm:unban"}))
+async def cb_ban_ask(call: CallbackQuery, lang: str, state: FSMContext) -> None:
+    await state.set_state(AdminForm.ban if call.data == "adm:ban" else AdminForm.unban)
+    await _edit(call, t(lang, "ban_ask"), back_kb(lang))
+    await call.answer()
+
+
+async def _target_id(message: Message, db: Storage) -> int | None:
+    """ID из пересланного сообщения, числа или @username (если человек уже писал боту)."""
+    origin = message.forward_origin
+    if origin is not None and getattr(origin, "sender_user", None):
+        return origin.sender_user.id
+    text = (message.text or "").strip()
+    if text.lstrip("-").isdigit():
+        return int(text)
+    if text.startswith("@") or text.replace("_", "").isalnum():
+        await db.find_by_username(text)
+        return None
+    return None
+
+
+@router.message(StateFilter(AdminForm.ban, AdminForm.unban), ~F.text.startswith("/"))
+async def on_ban_target(message: Message, lang: str, state: FSMContext, db: Storage, config: Config) -> None:
+    user_id = await _target_id(message, db)
+    if user_id is None:
+        await message.answer(t(lang, "target_not_found"))
+        return
+    banning = await state.get_state() == AdminForm.ban.state
+    await state.clear()
+    if banning and (user_id in config.admin_ids or await db.is_admin(user_id)):
+        await message.answer(t(lang, "ban_admin"), reply_markup=back_kb(lang))
+        return
+    if not await db.set_banned(user_id, banning):
+        await message.answer(t(lang, "ban_unknown", id=user_id), reply_markup=back_kb(lang))
+        return
+    await message.answer(t(lang, "ban_done" if banning else "unban_done", id=user_id), reply_markup=back_kb(lang))
+
+
+async def _show_banned(call: CallbackQuery, lang: str, db: Storage) -> None:
+    ids = await db.banned_users()
+    rows = [
+        [icons.button(f"{t(lang, 'btn_unban')} {uid}", "unlock", callback_data=f"adm:ub:{uid}")] for uid in ids[:30]
+    ]
+    rows.append([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
+    text = t(lang, "banned_list", n=len(ids)) if ids else t(lang, "banned_empty")
+    await _edit(call, text, InlineKeyboardMarkup(inline_keyboard=rows))
+
+
+@router.callback_query(F.data == "adm:banned")
+async def cb_banned(call: CallbackQuery, lang: str, db: Storage) -> None:
+    await _show_banned(call, lang, db)
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("adm:ub:"))
+async def cb_unban_one(call: CallbackQuery, lang: str, db: Storage) -> None:
+    user_id = int(call.data.removeprefix("adm:ub:"))
+    await db.set_banned(user_id, False)
+    await call.answer(plain(t(lang, "unban_done", id=user_id)))
+    await _show_banned(call, lang, db)
+
+
+# ---------- управление админами (только владельцы из ADMIN_IDS) ----------
+
+
+def _who(user_id: int, username: str | None) -> str:
+    return f"@{username} ({user_id})" if username else str(user_id)
+
+
+async def _show_admins(call: CallbackQuery, lang: str, db: Storage, config: Config) -> None:
+    lines = [t(lang, "admins_title"), ""]
+    for owner in sorted(config.admin_ids):
+        lines.append(f"👑 {_who(owner, await db.username_of(owner))}")
+    admins = await db.admins()
+    lines += [f"🛡 {_who(uid, name)}" for uid, name in admins] or [t(lang, "admins_empty")]
+    rows = [
+        [icons.button(f"{t(lang, 'btn_remove')} {_who(uid, name)}", "trash", "danger", callback_data=f"adm:rm:{uid}")]
+        for uid, name in admins
+    ]
+    rows.append([icons.button(t(lang, "btn_add_admin"), "add", "success", callback_data="adm:add")])
+    rows.append([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
+    await _edit(call, "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=rows))
+
+
+@router.callback_query(F.data == "adm:admins")
+async def cb_admins(call: CallbackQuery, lang: str, is_owner: bool, db: Storage, config: Config) -> None:
+    if not is_owner:
+        await call.answer(t(lang, "owner_only"), show_alert=True)
+        return
+    await _show_admins(call, lang, db, config)
+    await call.answer()
+
+
+@router.callback_query(F.data == "adm:add")
+async def cb_add_admin(call: CallbackQuery, lang: str, is_owner: bool, state: FSMContext) -> None:
+    if not is_owner:
+        await call.answer(t(lang, "owner_only"), show_alert=True)
+        return
+    await state.set_state(AdminForm.add_admin)
+    await _edit(call, t(lang, "admin_add_ask"), back_kb(lang))
+    await call.answer()
+
+
+@router.message(StateFilter(AdminForm.add_admin), ~F.text.startswith("/"))
+async def on_add_admin(
+    message: Message, bot: Bot, lang: str, is_owner: bool, state: FSMContext, db: Storage, config: Config
+) -> None:
+    if not is_owner:
+        await state.clear()
+        return
+    user_id = await _target_id(message, db)
+    if user_id is None:
+        await message.answer(t(lang, "target_not_found"))
+        return
+    await state.clear()
+    if user_id in config.admin_ids or await db.is_admin(user_id):
+        await message.answer(t(lang, "admin_exists"), reply_markup=back_kb(lang))
+        return
+    await db.add_admin(user_id, message.from_user.id)
+    await db.set_banned(user_id, False)
+    who = _who(user_id, await db.username_of(user_id))
+    await message.answer(t(lang, "admin_added", who=who), reply_markup=back_kb(lang))
+    with suppress(Exception):  # человек мог ещё не писать боту
+        await bot.send_message(user_id, t(lang, "admin_granted"))
+
+
+@router.callback_query(F.data.startswith("adm:rm:"))
+async def cb_remove_admin(call: CallbackQuery, lang: str, is_owner: bool, db: Storage, config: Config) -> None:
+    if not is_owner:
+        await call.answer(t(lang, "owner_only"), show_alert=True)
+        return
+    await db.remove_admin(int(call.data.removeprefix("adm:rm:")))
+    await call.answer(t(lang, "admin_removed"))
+    await _show_admins(call, lang, db, config)

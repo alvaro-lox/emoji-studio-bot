@@ -1,0 +1,543 @@
+"""Тексты на русском и английском. {i:имя} — иконка из app.icons."""
+
+from app.common.icons import icons
+
+LANGS = ("ru", "en")
+
+TEXTS: dict[str, dict[str, str]] = {
+    "ru": {
+        # ---------- меню ----------
+        "menu": (
+            "{i:sparkles} <b>Emoji Studio</b>\n\n"
+            "{i:sticker} <b>Эмодзи и стикеры</b>: ID и код, скачивание zip, перекраска, свои эмодзи\n"
+            "{i:gift} <b>NFT-подарки</b>: анимация 60 fps, оформление и слежка за владельцем\n\n"
+            "Выбери раздел или просто пришли стикер, эмодзи или ссылку."
+        ),
+        "section_stickers": (
+            "{i:sticker} <b>Эмодзи и стикеры</b>\n\n"
+            "Режим решает, что делать с присланными стикерами и эмодзи:\n"
+            "{i:search} <b>ID эмодзи</b>: ID премиум-эмодзи и готовый код\n"
+            "{i:download} <b>Скачать</b>: всё присланное одним zip\n"
+            "{i:brush} <b>Перекрасить</b>: любой пак в свой цвет, с тенями и бликами\n\n"
+            "{i:link} Ссылка на пак в любом режиме даёт превью и кнопки\n"
+            "{i:magic} Картинка, GIF или видео превращаются в эмодзи\n\n"
+            "{i:settings} Режим: <b>{mode}</b>"
+        ),
+        "btn_section_stickers": "Эмодзи и стикеры",
+        "mode_id": "ID эмодзи",
+        "mode_dl": "Скачивание",
+        "mode_color": "Перекраска",
+        "btn_mode_id": "ID эмодзи",
+        "btn_mode_dl": "Скачать",
+        "btn_mode_color": "Перекрасить",
+        "btn_maker": "Создать эмодзи",
+        "btn_gifts": "NFT-подарки",
+        "btn_watches": "Слежка",
+        "btn_mypack": "Мой пак",
+        "btn_lang": "Language",
+        "btn_help": "Помощь",
+        "btn_admin": "Админ-панель",
+        "btn_back": "Назад",
+        "btn_menu": "Меню",
+        "btn_close": "Закрыть",
+        "btn_cancel": "Отмена",
+        "mode_set_id": "Режим: ID эмодзи",
+        "mode_set_dl": "Режим: скачивание",
+        "mode_set_color": "Режим: перекраска",
+        "choose_lang": "{i:globe} Выбери язык / Choose language:",
+        "lang_set": "Язык: русский",
+        "cancelled": "{i:cross} Отменено.",
+        "myid": "{i:user} Твой ID: <code>{id}</code>\nДобавь его в ADMIN_IDS в .env, чтобы открыть админ-панель.",
+        "help": (
+            "{i:info} <b>Как пользоваться</b>\n\n"
+            "Режим выбирается в меню /start и решает, что делать со стикерами и эмодзи:\n"
+            "{i:search} <b>ID эмодзи</b>: ID и код для python-telegram-bot, aiogram, Telethon, Pyrogram\n"
+            "{i:download} <b>Скачать</b>: всё, что пришлёшь подряд, придёт одним zip (.tgs / .webm / .webp)\n"
+            "{i:brush} <b>Перекрасить</b>: выбираешь цвет, получаешь перекрашенный стикер или пак, "
+            "а из пака можно сразу сделать новый набор\n\n"
+            "В любом режиме:\n"
+            "{i:archive} <b>Ссылка на пак</b> (<code>t.me/addemoji/…</code>, <code>t.me/addstickers/…</code>): "
+            "превью всего пака одной картинкой + скачать / перекрасить\n"
+            "{i:magic} <b>Картинка, GIF или видео</b>: я сделаю премиум-эмодзи 100×100 и добавлю в твой личный пак. "
+            "Эмодзи в подписи к картинке станет его значком\n"
+            "{i:gift} <b>Ссылка на подарок</b> (<code>t.me/nft/…</code>): анимация 60 fps, оформление "
+            "(пост, аватар, сторис, свой фон и подпись), GIF, .tgs и слежка за сменой владельца"
+        ),
+        "gifts_help": (
+            "{i:gift} <b>NFT-подарки</b>\n\n"
+            "Пришли ссылку на подарок, например:\n"
+            "<code>https://t.me/nft/resistancedog-14072</code>\n\n"
+            "{i:film} Анимация 60 fps с фоном, узором, названием и номером\n"
+            "{i:brush} <b>Оформление</b>: формат 3:2, 1:1 (аватар) или 9:16 (сторис), своя картинка "
+            "вместо фона, своя подпись или без неё\n"
+            "{i:bell} <b>Следить</b>: напишу, когда у подарка сменится владелец. Список: /watches"
+        ),
+        "maker_help": (
+            "{i:magic} <b>Создать эмодзи</b>\n\n"
+            "Пришли картинку, фото, GIF или короткое видео, и я сделаю премиум-эмодзи 100×100:\n"
+            "• картинки становятся статичным эмодзи, а кнопка «Убрать фон» срежет однотонный фон\n"
+            "• GIF и видео становятся анимированным эмодзи (до 3 секунд)\n\n"
+            "Поставь эмодзи в подпись к картинке, например «🔥», и он станет значком эмодзи. "
+            "Всё складывается в твой личный пак, им можно пользоваться с Telegram Premium."
+        ),
+        "nothing_found": "{i:info} Не вижу ни эмодзи, ни стикера, ни ссылки на пак или подарок. Подробнее: /help",
+        "banned": "Доступ к боту ограничен.",
+        "flood": "Слишком быстро, подожди немного.",
+        "slow_down": "{i:clock} Слишком часто. Подожди {sec} с и попробуй снова.",
+        "expired": "Кнопка устарела, пришли заново.",
+        "file_too_big": "{i:cross} Файл слишком большой (максимум 20 МБ).",
+        "error": "{i:cross} Что-то пошло не так, попробуй ещё раз.",
+        # ---------- ID эмодзи ----------
+        "id_line": "{emoji} ID: <code>{id}</code>",
+        "id_many": "{i:search} <b>Найдено эмодзи: {n}</b>\n\n{lines}",
+        "id_more": "…и ещё {n}",
+        "btn_original": "Оригинал: {alt}",
+        "btn_copy_id": "ID",
+        "btn_code": "Код",
+        "btn_code_all": "Код для всех",
+        "btn_download": "Скачать",
+        "btn_download_all": "Скачать все",
+        "btn_pack": "Весь пак",
+        "btn_recolor": "Перекрасить",
+        "choose_lib": "Выберите библиотеку:",
+        "code_title": "{i:code} <b>Код для {lib}</b>\nСкопируй и вставь:",
+        "btn_copy": "Скопировать",
+        "btn_libs": "Библиотеки",
+        "sticker_card": (
+            "{i:sticker} <b>Стикер</b> {emoji}\nПак: <code>{pack}</code>\nТип: {kind}\nfile_id: <code>{file_id}</code>"
+        ),
+        "btn_copy_file_id": "file_id",
+        # ---------- скачивание и превью ----------
+        "dl_collect": "{i:hourglass} Собираю список…",
+        "dl_progress": "{i:hourglass} Скачано {done}/{total}…",
+        "dl_pack": "{i:archive} Упаковываю…",
+        "dl_done": "{i:check} Файлов: {n}",
+        "dl_nothing": "{i:cross} Нечего скачивать.",
+        "dl_failed": "{i:cross} Ничего не удалось скачать.",
+        "dl_err_pack": "пак <code>{name}</code> не найден",
+        "dl_err_files": "не скачалось файлов: {n}",
+        "dl_err_emoji": "не найдено эмодзи: {n}",
+        "dl_more": "…и ещё {n}",
+        "dl_pack_btn": "Весь пак {name}",
+        "dl_pack_wait": "Качаю пак {name}…",
+        "preview_wait": "{i:hourglass} Рисую превью пака <b>{name}</b>…",
+        "preview_caption": "{i:archive} <b>{title}</b>\n{kind} · {n} шт. · <code>{name}</code>",
+        "preview_zip_soon": "{i:download} Архив придёт следующим сообщением.",
+        "kind_emoji": "Премиум-эмодзи",
+        "kind_stickers": "Стикеры",
+        "btn_zip": "Скачать zip",
+        "btn_open_pack": "Открыть пак",
+        # ---------- перекраска ----------
+        "palette_title": "{i:brush} <b>Перекраска</b>\nВыбери цвет: тени и блики сохранятся.",
+        "palette_hint": "{i:brush} Выбери цвет для перекраски:",
+        "color_gold": "Золото",
+        "color_silver": "Серебро",
+        "color_red": "Красный",
+        "color_orange": "Оранжевый",
+        "color_green": "Зелёный",
+        "color_mint": "Бирюза",
+        "color_blue": "Синий",
+        "color_purple": "Фиолетовый",
+        "color_pink": "Розовый",
+        "color_mono": "Ч/Б",
+        "btn_color_hex": "Свой цвет (HEX)",
+        "btn_color_again": "Другой цвет",
+        "btn_file": "Файл",
+        "btn_make_pack": "Создать пак из этого",
+        "ask_hex": "{i:pipette} Пришли цвет в формате HEX, например <code>#FF8800</code>. /cancel для отмены",
+        "recolor_toast": "Перекрашиваю…",
+        "recolor_wait": "{i:brush} Перекрашиваю…",
+        "recolor_progress": "{i:brush} Готово {done}/{total}…",
+        "recolor_done": "{i:check} Перекрашено: {n}",
+        "recolor_skipped": "Видео-стикеров оставлено как есть: {n}",
+        "recolor_failed": "{i:cross} Не получилось перекрасить.",
+        "pack_creating": "{i:folder_add} Создаю пак… {done}/{total}",
+        "pack_created": "{i:check} Пак <b>{title}</b> готов, стикеров: {n}",
+        "pack_failed": "{i:cross} Telegram не дал создать пак: <code>{error}</code>",
+        "pack_full": "{i:cross} В паке уже максимум эмодзи (200). <code>{error}</code>",
+        # ---------- создание эмодзи ----------
+        "maker_wait": "{i:magic} Делаю эмодзи…",
+        "maker_toast": "Секунду…",
+        "maker_ready": "{i:magic} <b>Эмодзи готов</b> · 100×100 · значок {emoji}\nДобавь его в свой пак или скачай PNG.",
+        "maker_ready_video": "{i:magic} <b>Анимированный эмодзи готов</b> · 100×100 · значок {emoji}\nДобавь его в свой пак или скачай WEBM.",
+        "maker_failed": "{i:cross} Не получилось сделать эмодзи из этого файла.",
+        "maker_added": "{i:check} Добавлено! В твоём паке эмодзи: {n}",
+        "btn_bg_erase": "Убрать фон",
+        "btn_bg_restore": "Вернуть фон",
+        "btn_add_pack": "Добавить в мой пак",
+        "btn_png": "PNG-файл",
+        "btn_webm": "WEBM-файл",
+        "my_pack_title": "Мои эмодзи • @{bot}",
+        "mypack": "{i:folder_add} <b>Твой пак эмодзи</b>: {n} шт.",
+        "mypack_empty": "Пак ещё пустой: пришли картинку, и я сделаю из неё эмодзи.",
+        # ---------- подарки ----------
+        "gift_wait": "{i:hourglass} Рисую подарок <b>{slug}</b>…",
+        "gift_toast": "Рисую…",
+        "gift_not_found": "{i:cross} Подарок <code>{slug}</code> не найден.",
+        "gift_failed": "{i:cross} Не получилось отрисовать подарок, попробуй позже.",
+        "gift_caption": "{i:gift} <b>{title}</b> {number}",
+        "gift_model": "Модель",
+        "gift_backdrop": "Фон",
+        "gift_symbol": "Узор",
+        "gift_owner": "Владелец",
+        "btn_nobg": "Без фона",
+        "btn_withbg": "С фоном",
+        "btn_style": "Оформление",
+        "btn_style_again": "Изменить оформление",
+        "btn_gif": "GIF-файл",
+        "btn_tgs": "Модель .tgs",
+        "btn_open": "Открыть в Telegram",
+        "gif_wait": "Делаю GIF…",
+        "style_title": (
+            "{i:brush} <b>Оформление</b>: {title} {number}\n\n"
+            "Формат: <b>{aspect}</b>\nФон: <b>{background}</b>\nПодпись: <b>{text}</b>\n\n"
+            "Настрой и нажми «Нарисовать»."
+        ),
+        "style_bg_gift": "как у подарка",
+        "style_bg_custom": "своя картинка",
+        "style_text_default": "название и номер",
+        "style_text_none": "без подписи",
+        "aspect_32": "3:2 Пост",
+        "aspect_11": "1:1 Аватар",
+        "aspect_916": "9:16 Сторис",
+        "btn_bg_custom": "Свой фон",
+        "btn_bg_remove": "Убрать свой фон",
+        "btn_text_custom": "Своя подпись",
+        "btn_text_default": "Стандартная",
+        "btn_text_none": "Без подписи",
+        "btn_render": "Нарисовать",
+        "ask_background": "{i:image} Пришли картинку для фона (фото или файл). /cancel для отмены",
+        "ask_text": "{i:edit} Пришли подпись, до {n} символов. /cancel для отмены",
+        # ---------- слежка ----------
+        "btn_watch": "Следить за владельцем",
+        "btn_unwatch": "Не следить",
+        "btn_unwatch_short": "Не следить",
+        "watch_on": "🔔 Слежу! Напишу, когда у подарка сменится владелец.",
+        "watch_off": "Слежка выключена.",
+        "watch_limit": "Можно следить максимум за {n} подарками.",
+        "watches_title": "{i:bell} <b>Слежка за подарками</b>: {n}\nНапишу, как только сменится владелец.",
+        "watches_empty": "{i:bell} Ты пока ни за чем не следишь. Пришли ссылку на подарок и нажми «Следить».",
+        "watch_changed": "{i:bell} <b>{title} #{number}</b>: сменился владелец\n{old} → <b>{new}</b>",
+        # ---------- админка ----------
+        "admin_panel": "{i:admin} <b>Админ-панель</b>\n\n{i:users} Пользователей: <b>{users}</b> · активны за сутки: <b>{active}</b>",
+        "btn_stats": "Статистика",
+        "btn_broadcast": "Рассылка",
+        "btn_ban": "Бан",
+        "btn_unban": "Разбан",
+        "btn_banned_list": "Забаненные",
+        "btn_refresh": "Обновить",
+        "btn_bc_send": "Отправить ({n})",
+        "stats_head": "{i:stats} <b>Статистика</b>",
+        "stats_users": "{i:users} Пользователи: <b>{users}</b> (+{new_day} за сутки, +{new_week} за неделю)",
+        "stats_active": "{i:user} Активны: {day} за сутки · {week} за неделю",
+        "stats_banned": "{i:lock} Забанено: {banned} · заблокировали бота: {blocked}",
+        "stats_langs": "{i:globe} Языки: {langs}",
+        "stats_gift": "{i:gift} Подарки: {day} / {week} / {total}",
+        "stats_zip": "{i:download} Загрузки zip: {day} / {week} / {total}",
+        "stats_recolor": "{i:brush} Перекраски: {day} / {week} / {total}",
+        "stats_emoji": "{i:magic} Создано эмодзи: {day} / {week} / {total}",
+        "stats_preview": "{i:archive} Превью паков: {day} / {week} / {total}",
+        "stats_watches": "{i:bell} Активных слежек: {n}\n\n<i>сутки / неделя / всего</i>",
+        "bc_ask": "{i:megaphone} Пришли сообщение для рассылки: текст, фото, видео, что угодно. Отправлю его копию всем.",
+        "bc_confirm": "{i:megaphone} Так будет выглядеть рассылка. Отправить {n} пользователям?",
+        "bc_progress": "{i:megaphone} Рассылка: {done}/{total} · ✅ {ok} · ❌ {fail}",
+        "bc_done": "{i:check} Рассылка завершена: доставлено {ok}, не доставлено {fail}.",
+        "ban_ask": "{i:user} Пришли @username, ID пользователя или перешли его сообщение.",
+        "ban_done": "{i:lock} Пользователь <code>{id}</code> забанен.",
+        "unban_done": "{i:unlock} Пользователь <code>{id}</code> разбанен.",
+        "ban_unknown": "{i:cross} Пользователь <code>{id}</code> ещё не писал боту.",
+        "ban_admin": "{i:cross} Админа забанить нельзя.",
+        "banned_list": "{i:lock} <b>Забаненные</b>: {n}",
+        "banned_empty": "{i:check} Забаненных нет.",
+        # ---------- команды ----------
+        "btn_pack_ids": "Все ID пака",
+        "pack_ids_title": "{i:search} <b>{title}</b>: все ID ({n})",
+        "pack_ids_file": "{i:file} Все {n} ID одним файлом (JSON: эмодзи, custom_emoji_id, file_id).",
+        "pack_ids_file_stickers": "{i:file} <b>{title}</b>: {n} стикеров. В файле emoji, file_id и file_unique_id каждого.",
+        "btn_admins": "Админы",
+        "admins_title": "{i:admin} <b>Админы</b>\n👑 владелец (ADMIN_IDS в .env) · 🛡 админ",
+        "admins_empty": "Добавленных админов пока нет.",
+        "btn_remove": "Убрать",
+        "btn_add_admin": "Добавить админа",
+        "admin_add_ask": "{i:user} Пришли @username, ID или перешли сообщение человека. По @username найду, только если он уже писал боту.",
+        "target_not_found": "{i:cross} Не нашёл пользователя. Пусть сначала напишет боту /start, или пришли его числовой ID.",
+        "admin_exists": "{i:info} Он уже админ.",
+        "admin_added": "{i:check} {who} теперь админ.",
+        "admin_granted": "{i:admin} Тебе выдали права админа. Панель: /admin",
+        "admin_removed": "Админ убран.",
+        "owner_only": "Только владелец бота может управлять админами.",
+        "cmd_start": "Главное меню",
+        "cmd_language": "🇷🇺/🇺🇸 Язык",
+        "cmd_watches": "Слежка за подарками",
+        "cmd_help": "Помощь",
+    },
+    "en": {
+        "menu": (
+            "{i:sparkles} <b>Emoji Studio</b>\n\n"
+            "{i:sticker} <b>Emoji & stickers</b>: IDs and code, zip download, recolor, your own emoji\n"
+            "{i:gift} <b>NFT gifts</b>: 60 fps animation, styling and owner tracking\n\n"
+            "Pick a section or just send a sticker, emoji or link."
+        ),
+        "section_stickers": (
+            "{i:sticker} <b>Emoji & stickers</b>\n\n"
+            "The mode decides what happens to the stickers and emoji you send:\n"
+            "{i:search} <b>Emoji ID</b>: premium emoji IDs and ready-to-use code\n"
+            "{i:download} <b>Download</b>: everything you send in one zip\n"
+            "{i:brush} <b>Recolor</b>: any pack in your color, keeping shading and highlights\n\n"
+            "{i:link} A pack link gives a preview and buttons in any mode\n"
+            "{i:magic} An image, GIF or video becomes an emoji\n\n"
+            "{i:settings} Mode: <b>{mode}</b>"
+        ),
+        "btn_section_stickers": "Emoji & stickers",
+        "mode_id": "Emoji ID",
+        "mode_dl": "Download",
+        "mode_color": "Recolor",
+        "btn_mode_id": "Emoji ID",
+        "btn_mode_dl": "Download",
+        "btn_mode_color": "Recolor",
+        "btn_maker": "Create emoji",
+        "btn_gifts": "NFT gifts",
+        "btn_watches": "Tracking",
+        "btn_mypack": "My pack",
+        "btn_lang": "Язык",
+        "btn_help": "Help",
+        "btn_admin": "Admin panel",
+        "btn_back": "Back",
+        "btn_menu": "Menu",
+        "btn_close": "Close",
+        "btn_cancel": "Cancel",
+        "mode_set_id": "Mode: emoji ID",
+        "mode_set_dl": "Mode: download",
+        "mode_set_color": "Mode: recolor",
+        "choose_lang": "{i:globe} Выбери язык / Choose language:",
+        "lang_set": "Language: English",
+        "cancelled": "{i:cross} Cancelled.",
+        "myid": "{i:user} Your ID: <code>{id}</code>\nAdd it to ADMIN_IDS in .env to unlock the admin panel.",
+        "help": (
+            "{i:info} <b>How to use</b>\n\n"
+            "Pick a mode in /start; it decides what happens to stickers and emoji:\n"
+            "{i:search} <b>Emoji ID</b>: ID and code for python-telegram-bot, aiogram, Telethon, Pyrogram\n"
+            "{i:download} <b>Download</b>: everything you send in a row arrives as one zip (.tgs / .webm / .webp)\n"
+            "{i:brush} <b>Recolor</b>: pick a color, get the recolored sticker or pack, "
+            "and turn a recolored pack into a new set\n\n"
+            "In any mode:\n"
+            "{i:archive} <b>Pack link</b> (<code>t.me/addemoji/…</code>, <code>t.me/addstickers/…</code>): "
+            "a preview of the whole pack in one image + download / recolor\n"
+            "{i:magic} <b>Image, GIF or video</b>: I'll make a 100×100 premium emoji and add it to your personal pack. "
+            "An emoji in the image caption becomes its icon\n"
+            "{i:gift} <b>Gift link</b> (<code>t.me/nft/…</code>): 60 fps animation, styling "
+            "(post, avatar, story, custom background and caption), GIF, .tgs and owner tracking"
+        ),
+        "gifts_help": (
+            "{i:gift} <b>NFT gifts</b>\n\n"
+            "Send a gift link, for example:\n"
+            "<code>https://t.me/nft/resistancedog-14072</code>\n\n"
+            "{i:film} 60 fps animation with backdrop, pattern, name and number\n"
+            "{i:brush} <b>Styling</b>: 3:2, 1:1 (avatar) or 9:16 (story), your own image "
+            "as background, custom caption or none\n"
+            "{i:bell} <b>Track</b>: I'll message you when the gift changes owner. List: /watches"
+        ),
+        "maker_help": (
+            "{i:magic} <b>Create emoji</b>\n\n"
+            "Send an image, photo, GIF or short video and I'll make a 100×100 premium emoji:\n"
+            "• images become static emoji; the Remove background button cuts a plain background\n"
+            "• GIFs and videos become animated emoji (up to 3 seconds)\n\n"
+            "Put an emoji in the image caption, e.g. “🔥”, and it becomes the emoji's icon. "
+            "Everything goes to your personal pack, usable with Telegram Premium."
+        ),
+        "nothing_found": "{i:info} I don't see an emoji, sticker, pack link or gift link here. More: /help",
+        "banned": "Your access to this bot is restricted.",
+        "flood": "Too fast, slow down a bit.",
+        "slow_down": "{i:clock} Too often. Wait {sec} s and try again.",
+        "expired": "This button has expired, please send again.",
+        "file_too_big": "{i:cross} The file is too big (20 MB max).",
+        "error": "{i:cross} Something went wrong, please try again.",
+        "id_line": "{emoji} ID: <code>{id}</code>",
+        "id_many": "{i:search} <b>Emoji found: {n}</b>\n\n{lines}",
+        "id_more": "…and {n} more",
+        "btn_original": "Original: {alt}",
+        "btn_copy_id": "ID",
+        "btn_code": "Code",
+        "btn_code_all": "Code for all",
+        "btn_download": "Download",
+        "btn_download_all": "Download all",
+        "btn_pack": "Whole pack",
+        "btn_recolor": "Recolor",
+        "choose_lib": "Choose a library:",
+        "code_title": "{i:code} <b>Code for {lib}</b>\nCopy and paste:",
+        "btn_copy": "Copy",
+        "btn_libs": "Libraries",
+        "sticker_card": (
+            "{i:sticker} <b>Sticker</b> {emoji}\n"
+            "Pack: <code>{pack}</code>\n"
+            "Type: {kind}\n"
+            "file_id: <code>{file_id}</code>"
+        ),
+        "btn_copy_file_id": "file_id",
+        "dl_collect": "{i:hourglass} Collecting…",
+        "dl_progress": "{i:hourglass} Downloaded {done}/{total}…",
+        "dl_pack": "{i:archive} Packing…",
+        "dl_done": "{i:check} Files: {n}",
+        "dl_nothing": "{i:cross} Nothing to download.",
+        "dl_failed": "{i:cross} Couldn't download anything.",
+        "dl_err_pack": "pack <code>{name}</code> not found",
+        "dl_err_files": "failed files: {n}",
+        "dl_err_emoji": "emoji not found: {n}",
+        "dl_more": "…and {n} more",
+        "dl_pack_btn": "Whole pack {name}",
+        "dl_pack_wait": "Downloading pack {name}…",
+        "preview_wait": "{i:hourglass} Drawing a preview of <b>{name}</b>…",
+        "preview_caption": "{i:archive} <b>{title}</b>\n{kind} · {n} items · <code>{name}</code>",
+        "preview_zip_soon": "{i:download} The zip will arrive in the next message.",
+        "kind_emoji": "Premium emoji",
+        "kind_stickers": "Stickers",
+        "btn_zip": "Download zip",
+        "btn_open_pack": "Open pack",
+        "palette_title": "{i:brush} <b>Recolor</b>\nPick a color; shading and highlights are kept.",
+        "palette_hint": "{i:brush} Pick a color to recolor:",
+        "color_gold": "Gold",
+        "color_silver": "Silver",
+        "color_red": "Red",
+        "color_orange": "Orange",
+        "color_green": "Green",
+        "color_mint": "Turquoise",
+        "color_blue": "Blue",
+        "color_purple": "Purple",
+        "color_pink": "Pink",
+        "color_mono": "B/W",
+        "btn_color_hex": "Custom color (HEX)",
+        "btn_color_again": "Another color",
+        "btn_file": "File",
+        "btn_make_pack": "Create a pack from this",
+        "ask_hex": "{i:pipette} Send a HEX color, e.g. <code>#FF8800</code>. /cancel to cancel",
+        "recolor_toast": "Recoloring…",
+        "recolor_wait": "{i:brush} Recoloring…",
+        "recolor_progress": "{i:brush} Done {done}/{total}…",
+        "recolor_done": "{i:check} Recolored: {n}",
+        "recolor_skipped": "Video stickers left as is: {n}",
+        "recolor_failed": "{i:cross} Couldn't recolor this.",
+        "pack_creating": "{i:folder_add} Creating the pack… {done}/{total}",
+        "pack_created": "{i:check} Pack <b>{title}</b> is ready, stickers: {n}",
+        "pack_failed": "{i:cross} Telegram refused to create the pack: <code>{error}</code>",
+        "pack_full": "{i:cross} The pack already has the maximum of 200 emoji. <code>{error}</code>",
+        "maker_wait": "{i:magic} Making your emoji…",
+        "maker_toast": "One moment…",
+        "maker_ready": "{i:magic} <b>Emoji ready</b> · 100×100 · icon {emoji}\nAdd it to your pack or download the PNG.",
+        "maker_ready_video": "{i:magic} <b>Animated emoji ready</b> · 100×100 · icon {emoji}\nAdd it to your pack or download the WEBM.",
+        "maker_failed": "{i:cross} Couldn't make an emoji from this file.",
+        "maker_added": "{i:check} Added! Emoji in your pack: {n}",
+        "btn_bg_erase": "Remove background",
+        "btn_bg_restore": "Restore background",
+        "btn_add_pack": "Add to my pack",
+        "btn_png": "PNG file",
+        "btn_webm": "WEBM file",
+        "my_pack_title": "My emoji • @{bot}",
+        "mypack": "{i:folder_add} <b>Your emoji pack</b>: {n} items",
+        "mypack_empty": "Your pack is empty: send an image and I'll turn it into an emoji.",
+        "gift_wait": "{i:hourglass} Drawing gift <b>{slug}</b>…",
+        "gift_toast": "Drawing…",
+        "gift_not_found": "{i:cross} Gift <code>{slug}</code> not found.",
+        "gift_failed": "{i:cross} Couldn't render the gift, please try later.",
+        "gift_caption": "{i:gift} <b>{title}</b> {number}",
+        "gift_model": "Model",
+        "gift_backdrop": "Backdrop",
+        "gift_symbol": "Symbol",
+        "gift_owner": "Owner",
+        "btn_nobg": "No background",
+        "btn_withbg": "With background",
+        "btn_style": "Styling",
+        "btn_style_again": "Change styling",
+        "btn_gif": "GIF file",
+        "btn_tgs": ".tgs model",
+        "btn_open": "Open in Telegram",
+        "gif_wait": "Making GIF…",
+        "style_title": (
+            "{i:brush} <b>Styling</b>: {title} {number}\n\n"
+            "Format: <b>{aspect}</b>\nBackground: <b>{background}</b>\nCaption: <b>{text}</b>\n\n"
+            "Adjust and tap Render."
+        ),
+        "style_bg_gift": "gift's own",
+        "style_bg_custom": "your image",
+        "style_text_default": "name and number",
+        "style_text_none": "no caption",
+        "aspect_32": "3:2 Post",
+        "aspect_11": "1:1 Avatar",
+        "aspect_916": "9:16 Story",
+        "btn_bg_custom": "Custom background",
+        "btn_bg_remove": "Remove custom background",
+        "btn_text_custom": "Custom caption",
+        "btn_text_default": "Default",
+        "btn_text_none": "No caption",
+        "btn_render": "Render",
+        "ask_background": "{i:image} Send an image for the background (photo or file). /cancel to cancel",
+        "ask_text": "{i:edit} Send a caption, up to {n} characters. /cancel to cancel",
+        "btn_watch": "Track owner",
+        "btn_unwatch": "Stop tracking",
+        "btn_unwatch_short": "Stop",
+        "watch_on": "🔔 Tracking! I'll message you when the gift changes owner.",
+        "watch_off": "Tracking stopped.",
+        "watch_limit": "You can track up to {n} gifts.",
+        "watches_title": "{i:bell} <b>Tracked gifts</b>: {n}\nI'll message you as soon as the owner changes.",
+        "watches_empty": "{i:bell} You're not tracking anything yet. Send a gift link and tap Track.",
+        "watch_changed": "{i:bell} <b>{title} #{number}</b>: owner changed\n{old} → <b>{new}</b>",
+        "admin_panel": "{i:admin} <b>Admin panel</b>\n\n{i:users} Users: <b>{users}</b> · active today: <b>{active}</b>",
+        "btn_stats": "Statistics",
+        "btn_broadcast": "Broadcast",
+        "btn_ban": "Ban",
+        "btn_unban": "Unban",
+        "btn_banned_list": "Banned users",
+        "btn_refresh": "Refresh",
+        "btn_bc_send": "Send ({n})",
+        "stats_head": "{i:stats} <b>Statistics</b>",
+        "stats_users": "{i:users} Users: <b>{users}</b> (+{new_day} today, +{new_week} this week)",
+        "stats_active": "{i:user} Active: {day} today · {week} this week",
+        "stats_banned": "{i:lock} Banned: {banned} · blocked the bot: {blocked}",
+        "stats_langs": "{i:globe} Languages: {langs}",
+        "stats_gift": "{i:gift} Gifts: {day} / {week} / {total}",
+        "stats_zip": "{i:download} Zip downloads: {day} / {week} / {total}",
+        "stats_recolor": "{i:brush} Recolors: {day} / {week} / {total}",
+        "stats_emoji": "{i:magic} Emoji created: {day} / {week} / {total}",
+        "stats_preview": "{i:archive} Pack previews: {day} / {week} / {total}",
+        "stats_watches": "{i:bell} Active tracking: {n}\n\n<i>day / week / all time</i>",
+        "bc_ask": "{i:megaphone} Send the message to broadcast: text, photo, video, anything. I'll send a copy to everyone.",
+        "bc_confirm": "{i:megaphone} This is how the broadcast will look. Send it to {n} users?",
+        "bc_progress": "{i:megaphone} Broadcast: {done}/{total} · ✅ {ok} · ❌ {fail}",
+        "bc_done": "{i:check} Broadcast finished: delivered {ok}, failed {fail}.",
+        "ban_ask": "{i:user} Send a @username, the user ID, or forward one of their messages.",
+        "ban_done": "{i:lock} User <code>{id}</code> is banned.",
+        "unban_done": "{i:unlock} User <code>{id}</code> is unbanned.",
+        "ban_unknown": "{i:cross} User <code>{id}</code> hasn't used the bot yet.",
+        "ban_admin": "{i:cross} Admins can't be banned.",
+        "banned_list": "{i:lock} <b>Banned users</b>: {n}",
+        "banned_empty": "{i:check} No banned users.",
+        "btn_pack_ids": "All pack IDs",
+        "pack_ids_title": "{i:search} <b>{title}</b>: all IDs ({n})",
+        "pack_ids_file": "{i:file} All {n} IDs in one file (JSON: emoji, custom_emoji_id, file_id).",
+        "pack_ids_file_stickers": "{i:file} <b>{title}</b>: {n} stickers. The file has each one's emoji, file_id and file_unique_id.",
+        "btn_admins": "Admins",
+        "admins_title": "{i:admin} <b>Admins</b>\n👑 owner (ADMIN_IDS in .env) · 🛡 admin",
+        "admins_empty": "No added admins yet.",
+        "btn_remove": "Remove",
+        "btn_add_admin": "Add admin",
+        "admin_add_ask": "{i:user} Send a @username, an ID, or forward the person's message. A @username works only if they've used the bot.",
+        "target_not_found": "{i:cross} User not found. Ask them to send /start to the bot first, or send their numeric ID.",
+        "admin_exists": "{i:info} They're already an admin.",
+        "admin_added": "{i:check} {who} is now an admin.",
+        "admin_granted": "{i:admin} You've been made an admin. Panel: /admin",
+        "admin_removed": "Admin removed.",
+        "owner_only": "Only the bot owner can manage admins.",
+        "cmd_start": "Main menu",
+        "cmd_language": "🇷🇺/🇺🇸 Language",
+        "cmd_watches": "Gift tracking",
+        "cmd_help": "Help",
+    },
+}
+
+
+def t(lang: str, key: str, **kwargs) -> str:
+    text = TEXTS.get(lang, TEXTS["en"]).get(key) or TEXTS["en"][key]
+    return text.format(i=icons, **kwargs)
+
+
+def default_lang(language_code: str | None) -> str:
+    return "ru" if (language_code or "").split("-")[0] in ("ru", "uk", "be", "kk") else "en"

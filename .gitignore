@@ -1,0 +1,24 @@
+# секреты и локальные настройки
+.env
+.env.*
+!.env.example
+deploy.json
+
+# данные бота
+data/
+
+# иконки Telegram — чужой контент, бот берёт пак по имени прямо из Telegram
+tgiosicons/
+
+# окружение и кэши
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+
+# локальные настройки инструментов разработчика
+.claude/
+.claudeignore
