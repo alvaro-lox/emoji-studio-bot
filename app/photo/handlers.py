@@ -69,13 +69,17 @@ async def _send_result(call: CallbackQuery, bot: Bot, lang: str, source: dict, a
     try:
         data = await read_file(bot, source["file_id"])
         if action == "bg":
-            png = await asyncio.to_thread(remove_background, data)
+            output = await asyncio.to_thread(remove_background, data)
             caption, filename = t(lang, "photo_cutout_done"), "no_background.png"
         else:
-            png, (width, height) = await asyncio.to_thread(enhance, data)
-            caption, filename = t(lang, "photo_enhance_done", width=width, height=height), "enhanced.png"
+            result = await asyncio.to_thread(enhance, data)
+            width, height = result.size
+            lines = [t(lang, "photo_enhance_done", width=width, height=height)]
+            if result.faces:
+                lines.append(t(lang, "photo_faces_restored", n=result.faces))
+            caption, output, filename = "\n".join(lines), result.data, f"enhanced.{result.extension}"
         await call.message.answer_document(
-            BufferedInputFile(png, filename=filename), caption=caption, disable_content_type_detection=True
+            BufferedInputFile(output, filename=filename), caption=caption, disable_content_type_detection=True
         )
     except Exception:
         log.exception("Не удалось обработать фото (%s)", action)

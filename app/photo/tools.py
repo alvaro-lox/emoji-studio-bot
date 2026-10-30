@@ -1,4 +1,4 @@
-"""Обработка фото в полном разрешении: удаление фона и улучшение качества.
+"""Обработка фото в полном разрешении: удаление фона и улучшение качества (см. enhance.py).
 
 Фон убирает нейросеть (rembg, модель ISNet). Она считает маску на уменьшенной копии,
 а маска потом растягивается до исходного размера — сами пиксели фото не пережимаются.
@@ -8,6 +8,7 @@
 import io
 import logging
 import threading
+from dataclasses import dataclass
 from functools import lru_cache
 
 import numpy as np
@@ -16,7 +17,6 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 log = logging.getLogger(__name__)
 
 MAX_SIDE = 4096  # больше Telegram всё равно не покажет, а память не резиновая
-UPSCALE_LIMIT = 4096
 BACKGROUND_MODEL = "isnet-general-use"
 MARKER = (255, 0, 254)  # временная заливка фона в простом режиме
 
@@ -120,30 +120,51 @@ def remove_background(data: bytes) -> bytes:
     return to_png(crop_to_content(cut_out(open_image(data))))
 
 
-def enhance(data: bytes) -> tuple[bytes, tuple[int, int]]:
-    """Апскейл ×2 (если есть куда), шумоподавление, резкость, контраст и цвет. (PNG, размер)."""
-    image = open_image(data)
+@dataclass
+class Enhanced:
+    data: bytes
+    extension: str  # "jpg" — обычное фото, "png" — если была прозрачность
+    size: tuple[int, int]
+    faces: int
+
+
+def classic_enhance(image: Image.Image) -> Image.Image:
+    """Запасной вариант без нейросетей: ×2, мягкое шумоподавление, резкость, контраст и цвет."""
     alpha = image.getchannel("A") if "A" in image.getbands() else None
     rgb = image.convert("RGB")
-
-    factor = 2 if max(rgb.size) * 2 <= UPSCALE_LIMIT else 1
-    if factor > 1:
-        new_size = (rgb.width * factor, rgb.height * factor)
-        rgb = rgb.resize(new_size, Image.Resampling.LANCZOS)
-        if alpha is not None:
-            alpha = alpha.resize(new_size, Image.Resampling.LANCZOS)
-
-    # мягкое шумоподавление: медиана смешивается с оригиналом, чтобы не «замылить» детали
+    if max(rgb.size) * 2 <= MAX_SIDE:
+        rgb = rgb.resize((rgb.width * 2, rgb.height * 2), Image.Resampling.LANCZOS)
     rgb = Image.blend(rgb, rgb.filter(ImageFilter.MedianFilter(3)), 0.35)
-    rgb = rgb.filter(ImageFilter.UnsharpMask(radius=2 * factor, percent=110, threshold=2))
+    rgb = rgb.filter(ImageFilter.UnsharpMask(radius=3, percent=110, threshold=2))
     rgb = ImageOps.autocontrast(rgb, cutoff=0.3, preserve_tone=True)
-    rgb = ImageEnhance.Color(rgb).enhance(1.08)
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.04)
-
+    rgb = ImageEnhance.Contrast(ImageEnhance.Color(rgb).enhance(1.08)).enhance(1.04)
     if alpha is not None:
         rgb = rgb.convert("RGBA")
-        rgb.putalpha(alpha)
-    return to_png(rgb), rgb.size
+        rgb.putalpha(alpha.resize(rgb.size, Image.Resampling.LANCZOS))
+    return rgb
+
+
+def enhance(data: bytes) -> Enhanced:
+    """Нейросети (Real-ESRGAN ×4 + GFPGAN для лиц); если их нет — классическая обработка."""
+    image = open_image(data)
+    faces = 0
+    try:
+        from app.photo.enhance import enhance_image
+
+        result = enhance_image(image)
+        image, faces = result.image, result.faces
+    except Exception:
+        log.exception("Нейросетевое улучшение не сработало — делаю обычное")
+        image = classic_enhance(image)
+
+    buffer = io.BytesIO()
+    if "A" in image.getbands():
+        image.save(buffer, "PNG", compress_level=6)
+        extension = "png"
+    else:  # фото без прозрачности: JPEG 95 в разы меньше PNG и на глаз не отличается
+        image.save(buffer, "JPEG", quality=95, subsampling=0, optimize=True)
+        extension = "jpg"
+    return Enhanced(buffer.getvalue(), extension, image.size, faces)
 
 
 def checkerboard_preview(image_png: bytes, max_side: int = 1280) -> bytes:

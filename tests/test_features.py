@@ -152,15 +152,50 @@ def test_flat_background_cutout_and_fit(monkeypatch):
     assert fitted.getpixel((0, 0))[3] == 0
 
 
-def test_enhance_upscales_and_keeps_alpha():
+def test_enhance_falls_back_to_classic_and_keeps_alpha(monkeypatch):
+    import app.photo.enhance as neural
+
+    def broken(image):
+        raise RuntimeError("нет моделей")
+
+    monkeypatch.setattr(neural, "enhance_image", broken)
     image = Image.new("RGBA", (50, 30), (120, 80, 40, 255))
     image.putpixel((0, 0), (0, 0, 0, 0))
     buf = io.BytesIO()
     image.save(buf, "PNG")
-    png, size = photo_tools.enhance(buf.getvalue())
-    out = Image.open(io.BytesIO(png))
-    assert size == (100, 60) and out.size == (100, 60)
+    result = photo_tools.enhance(buf.getvalue())
+    out = Image.open(io.BytesIO(result.data))
+    assert result.size == (100, 60) and out.size == (100, 60) and result.extension == "png"
     assert out.mode == "RGBA" and out.getpixel((0, 0))[3] < 64
+
+
+def test_neural_upscale_tiles_cover_whole_image(monkeypatch):
+    """Плитки с перекрытием собираются без дыр и сдвигов: проверяем на «модели» = nearest ×4."""
+    import numpy as np
+
+    import app.photo.enhance as neural
+
+    class NearestX4:
+        def run(self, _, feeds):
+            tile = feeds["input"]
+            return [tile.repeat(4, axis=2).repeat(4, axis=3)]
+
+    monkeypatch.setattr(neural, "_session", lambda name: NearestX4())
+    monkeypatch.setattr(neural, "TILE", 32)
+    source = np.random.default_rng(1).integers(0, 255, (70, 90, 3), dtype=np.uint8)
+    result = neural.upscale_x4(source)
+    assert result.shape == (280, 360, 3)
+    assert np.array_equal(result[::4, ::4], source)
+
+
+def test_photo_jpeg_output_without_alpha(monkeypatch):
+    import app.photo.enhance as neural
+
+    monkeypatch.setattr(neural, "enhance_image", lambda image: neural.EnhanceResult(image.convert("RGB"), 2))
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 40), (10, 200, 30)).save(buf, "JPEG")
+    result = photo_tools.enhance(buf.getvalue())
+    assert result.extension == "jpg" and result.faces == 2
 
 
 def test_make_static_is_100px_png():

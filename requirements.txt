@@ -8,3 +8,4 @@ numpy>=1.26
 imageio-ffmpeg>=0.5
 rembg>=2.0.60  # удаление фона нейросетью (модель скачается при первом запуске)
 onnxruntime>=1.18
+opencv-python-headless>=4.8  # поиск лиц (YuNet) для их восстановления

@@ -34,7 +34,8 @@ In any mode, a pack link gives a preview grid of the whole pack, and a GIF or vi
 
 **🖼 Photo.** Send a photo (as a file for no compression) and pick:
 - **Remove background** — a neural network (rembg, ISNet) cuts the subject out at full resolution;
-- **Enhance** — ×2 upscale, light denoise, sharpening, contrast and color;
+- **Enhance** — neural ×4 upscale (Real-ESRGAN general x4v3) that removes noise and JPEG artifacts, plus
+  face restoration (GFPGAN v1.4, faces found by YuNet). Runs on CPU via onnxruntime, about 3–12 s per photo;
 - **Make emoji** — a 100×100 premium emoji.
 
 **Admin panel** (`/admin`): statistics, broadcast of any message exactly as sent (formatting, premium

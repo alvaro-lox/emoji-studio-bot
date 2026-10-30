@@ -19,6 +19,7 @@ from app.nft import handlers as nft
 from app.nft.service import GiftService
 from app.nft.watcher import watch_loop
 from app.photo import handlers as photo
+from app.photo.enhance import warm_up as warm_up_enhancer
 from app.photo.tools import has_neural_cutout
 from app.stickers.downloader import Downloader
 from app.stickers.handlers import content, maker, recolor
@@ -61,8 +62,9 @@ async def main() -> None:
         gifts.cleanup()
         limits = Limits(config.heavy_limit, config.heavy_window)
         background.append(asyncio.create_task(watch_loop(bot, db, gifts, config.watch_interval)))
-        # нейросеть для фона грузится секунд 20 — делаем это заранее, а не на первом фото
+        # нейросети для фото скачиваются и грузятся долго — делаем это заранее, а не на первом фото
         background.append(asyncio.create_task(asyncio.to_thread(has_neural_cutout)))
+        background.append(asyncio.create_task(asyncio.to_thread(warm_up_enhancer)))
 
         dp = Dispatcher()
         dp.update.outer_middleware(UserMiddleware(db, config.admin_ids, limits))
