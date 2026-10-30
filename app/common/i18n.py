@@ -7,7 +7,7 @@ LANGS = ("ru", "en")
 TEXTS: dict[str, dict[str, str]] = {
     "ru": {
         # ---------- меню ----------
-        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Эмодзи и стикеры</b>: ID и код, скачивание zip, перекраска цветом или градиентом\n{i:gift} <b>NFT-подарки</b>: анимация 60 fps, коллажи, скачивание и слежка за владельцем\n{i:image} <b>Фото</b>: убрать фон нейросетью, улучшить качество, сделать эмодзи\n\nВыбери раздел или просто пришли стикер, эмодзи, фото или ссылку.",
+        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Эмодзи и стикеры</b>: ID и код, скачивание zip, перекраска цветом или градиентом\n{i:gift} <b>NFT-подарки</b>: анимация 60 fps, коллажи, скачивание и слежка за владельцем\n{i:image} <b>Фото (БЕТА)</b>: убрать фон нейросетью, улучшить качество, сделать эмодзи\n\nВыбери раздел или просто пришли стикер, эмодзи, фото или ссылку.",
         "section_stickers": (
             "{i:sticker} <b>Эмодзи и стикеры</b>\n\n"
             "Режим решает, что делать с присланными стикерами и эмодзи:\n"
@@ -43,7 +43,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "lang_set": "Язык: русский",
         "cancelled": "{i:cross} Отменено.",
         "myid": "{i:user} Твой ID: <code>{id}</code>\nДобавь его в ADMIN_IDS в .env, чтобы открыть админ-панель.",
-        "help": "{i:info} <b>Как пользоваться</b>\n\nРежим выбирается в разделе «Эмодзи и стикеры» и решает, что делать со стикерами и эмодзи:\n{i:search} <b>ID эмодзи</b>: ID и код для python-telegram-bot, aiogram, Telethon, Pyrogram\n{i:download} <b>Скачать</b>: всё, что пришлёшь подряд, придёт одним zip (.tgs / .webm / .webp)\n{i:brush} <b>Перекрасить</b>: цвет или градиент, тени сохраняются; из пака можно сразу сделать новый набор\n\nВ любом режиме:\n{i:archive} <b>Ссылка на пак</b>: превью всего пака одной картинкой + скачать / перекрасить\n{i:image} <b>Фото</b>: убрать фон, улучшить качество или сделать эмодзи\n{i:magic} <b>GIF или видео</b>: анимированный эмодзи 100×100 в твой личный пак\n{i:gift} <b>Ссылка на подарок</b>: анимация 60 fps, оформление, GIF, архив целиком и слежка за владельцем\n{i:sparkles} <b>Несколько подарков</b> одним сообщением: коллаж в одной анимации",
+        "help": "{i:info} <b>Как пользоваться</b>\n\nРежим выбирается в разделе «Эмодзи и стикеры» и решает, что делать со стикерами и эмодзи:\n{i:search} <b>ID эмодзи</b>: ID и код для python-telegram-bot, aiogram, Telethon, Pyrogram\n{i:download} <b>Скачать</b>: всё, что пришлёшь подряд, придёт одним zip (.tgs / .webm / .webp)\n{i:brush} <b>Перекрасить</b>: цвет или градиент, тени сохраняются; из пака можно сразу сделать новый набор\n\nВ любом режиме:\n{i:archive} <b>Ссылка на пак</b>: превью всего пака одной картинкой + скачать / перекрасить\n{i:image} <b>Фото (БЕТА)</b>: убрать фон, улучшить качество или сделать эмодзи\n{i:magic} <b>GIF или видео</b>: анимированный эмодзи 100×100 в твой личный пак\n{i:gift} <b>Ссылка на подарок</b>: анимация 60 fps, оформление, GIF, архив целиком и слежка за владельцем\n{i:sparkles} <b>Несколько подарков</b> одним сообщением: коллаж в одной анимации",
         "gifts_help": "{i:gift} <b>NFT-подарки</b>\n\nПришли ссылку на подарок, например:\n<code>https://t.me/nft/resistancedog-14072</code>\n\n{i:film} Анимация 60 fps с фоном, узором, названием и номером\n{i:brush} <b>Оформление</b>: 3:2, 1:1 (аватар) или 9:16 (сторис), своя картинка вместо фона, своя подпись\n{i:download} <b>Скачать</b>: видео, модель .tgs, картинки PNG и данные одним архивом\n{i:sparkles} <b>Коллаж</b>: пришли несколько ссылок одним сообщением\n{i:bell} <b>Следить</b>: напишу, когда у подарка сменится владелец. Список: /watches",
         "maker_help": (
             "{i:magic} <b>Создать эмодзи</b>\n\n"
@@ -251,8 +251,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "color_ice": "Лёд",
         "stats_collage": "{i:sparkles} Коллажи подарков: {day} / {week} / {total}",
         "stats_photo": "{i:image} Обработка фото: {day} / {week} / {total}",
-        "btn_section_photo": "Фото",
-        "section_photo": "{i:image} <b>Фото</b>\n\nПришли фото или картинку (лучше файлом — так без сжатия), и выбери, что сделать:\n{i:eraser} <b>Убрать фон</b>: нейросеть вырезает объект в полном разрешении, PNG с прозрачностью\n{i:sparkles} <b>Улучшить</b>: нейросети Real-ESRGAN и GFPGAN — увеличение ×4, убирают шум и артефакты сжатия, восстанавливают лица\n{i:magic} <b>Эмодзи</b>: премиум-эмодзи 100×100 в твой пак\n\nЭмодзи в подписи к фото, например «🔥», — сразу делаю эмодзи с этим значком.",
+        "btn_section_photo": "Фото (БЕТА)",
+        "section_photo": "{i:image} <b>Фото</b> (БЕТА)\n\nПришли фото или картинку (лучше файлом — так без сжатия), и выбери, что сделать:\n{i:eraser} <b>Убрать фон</b>: нейросеть вырезает объект в полном разрешении, PNG с прозрачностью\n{i:sparkles} <b>Улучшить</b>: нейросети Real-ESRGAN и GFPGAN — увеличение ×4, убирают шум и артефакты сжатия, восстанавливают лица\n{i:magic} <b>Эмодзи</b>: премиум-эмодзи 100×100 в твой пак\n\nЭмодзи в подписи к фото, например «🔥», — сразу делаю эмодзи с этим значком.",
         "photo_actions": "{i:image} Что сделать с фото?",
         "btn_photo_cutout": "Убрать фон",
         "btn_photo_enhance": "Улучшить",
@@ -305,7 +305,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "photo_faces_restored": "{i:user} Лиц восстановлено: {n}",
     },
     "en": {
-        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Emoji & stickers</b>: IDs and code, zip download, recolor with a color or gradient\n{i:gift} <b>NFT gifts</b>: 60 fps animation, collages, download and owner tracking\n{i:image} <b>Photo</b>: neural background removal, enhancement, emoji\n\nPick a section or just send a sticker, emoji, photo or link.",
+        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Emoji & stickers</b>: IDs and code, zip download, recolor with a color or gradient\n{i:gift} <b>NFT gifts</b>: 60 fps animation, collages, download and owner tracking\n{i:image} <b>Photo (BETA)</b>: neural background removal, enhancement, emoji\n\nPick a section or just send a sticker, emoji, photo or link.",
         "section_stickers": (
             "{i:sticker} <b>Emoji & stickers</b>\n\n"
             "The mode decides what happens to the stickers and emoji you send:\n"
@@ -544,8 +544,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "color_ice": "Ice",
         "stats_collage": "{i:sparkles} Gift collages: {day} / {week} / {total}",
         "stats_photo": "{i:image} Photo edits: {day} / {week} / {total}",
-        "btn_section_photo": "Photo",
-        "section_photo": "{i:image} <b>Photo</b>\n\nSend a photo or image (as a file is best — no compression) and pick an action:\n{i:eraser} <b>Remove background</b>: a neural network cuts the subject out at full resolution, PNG with transparency\n{i:sparkles} <b>Enhance</b>: Real-ESRGAN and GFPGAN — ×4 upscale, noise and compression artifacts removed, faces restored\n{i:magic} <b>Emoji</b>: a 100×100 premium emoji for your pack\n\nAn emoji in the caption, e.g. “🔥”, makes an emoji right away with that icon.",
+        "btn_section_photo": "Photo (BETA)",
+        "section_photo": "{i:image} <b>Photo</b> (BETA)\n\nSend a photo or image (as a file is best — no compression) and pick an action:\n{i:eraser} <b>Remove background</b>: a neural network cuts the subject out at full resolution, PNG with transparency\n{i:sparkles} <b>Enhance</b>: Real-ESRGAN and GFPGAN — ×4 upscale, noise and compression artifacts removed, faces restored\n{i:magic} <b>Emoji</b>: a 100×100 premium emoji for your pack\n\nAn emoji in the caption, e.g. “🔥”, makes an emoji right away with that icon.",
         "photo_actions": "{i:image} What should I do with this photo?",
         "btn_photo_cutout": "Remove background",
         "btn_photo_enhance": "Enhance",
