@@ -65,8 +65,11 @@ def test_caption_and_keyboard(info):
         "gs:resistancedog-14072",
         "gif:f:resistancedog-14072",
         "tgs:resistancedog-14072",
+        "gdl:resistancedog-14072",
         "w:resistancedog-14072",
     ]
+    for row in kb.inline_keyboard:  # в строке один стиль
+        assert len({b.style for b in row}) == 1
     watching = [b.callback_data for row in gift_kb(info, "f", "ru", True).inline_keyboard for b in row]
     assert "uw:resistancedog-14072" in watching
     assert all(len(d.encode()) <= 64 for d in datas)

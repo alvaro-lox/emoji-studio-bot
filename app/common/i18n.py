@@ -7,12 +7,7 @@ LANGS = ("ru", "en")
 TEXTS: dict[str, dict[str, str]] = {
     "ru": {
         # ---------- меню ----------
-        "menu": (
-            "{i:sparkles} <b>Emoji Studio</b>\n\n"
-            "{i:sticker} <b>Эмодзи и стикеры</b>: ID и код, скачивание zip, перекраска, свои эмодзи\n"
-            "{i:gift} <b>NFT-подарки</b>: анимация 60 fps, оформление и слежка за владельцем\n\n"
-            "Выбери раздел или просто пришли стикер, эмодзи или ссылку."
-        ),
+        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Эмодзи и стикеры</b>: ID и код, скачивание zip, перекраска цветом или градиентом\n{i:gift} <b>NFT-подарки</b>: анимация 60 fps, коллажи, скачивание и слежка за владельцем\n{i:image} <b>Фото</b>: убрать фон нейросетью, улучшить качество, сделать эмодзи\n\nВыбери раздел или просто пришли стикер, эмодзи, фото или ссылку.",
         "section_stickers": (
             "{i:sticker} <b>Эмодзи и стикеры</b>\n\n"
             "Режим решает, что делать с присланными стикерами и эмодзи:\n"
@@ -48,30 +43,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "lang_set": "Язык: русский",
         "cancelled": "{i:cross} Отменено.",
         "myid": "{i:user} Твой ID: <code>{id}</code>\nДобавь его в ADMIN_IDS в .env, чтобы открыть админ-панель.",
-        "help": (
-            "{i:info} <b>Как пользоваться</b>\n\n"
-            "Режим выбирается в меню /start и решает, что делать со стикерами и эмодзи:\n"
-            "{i:search} <b>ID эмодзи</b>: ID и код для python-telegram-bot, aiogram, Telethon, Pyrogram\n"
-            "{i:download} <b>Скачать</b>: всё, что пришлёшь подряд, придёт одним zip (.tgs / .webm / .webp)\n"
-            "{i:brush} <b>Перекрасить</b>: выбираешь цвет, получаешь перекрашенный стикер или пак, "
-            "а из пака можно сразу сделать новый набор\n\n"
-            "В любом режиме:\n"
-            "{i:archive} <b>Ссылка на пак</b> (<code>t.me/addemoji/…</code>, <code>t.me/addstickers/…</code>): "
-            "превью всего пака одной картинкой + скачать / перекрасить\n"
-            "{i:magic} <b>Картинка, GIF или видео</b>: я сделаю премиум-эмодзи 100×100 и добавлю в твой личный пак. "
-            "Эмодзи в подписи к картинке станет его значком\n"
-            "{i:gift} <b>Ссылка на подарок</b> (<code>t.me/nft/…</code>): анимация 60 fps, оформление "
-            "(пост, аватар, сторис, свой фон и подпись), GIF, .tgs и слежка за сменой владельца"
-        ),
-        "gifts_help": (
-            "{i:gift} <b>NFT-подарки</b>\n\n"
-            "Пришли ссылку на подарок, например:\n"
-            "<code>https://t.me/nft/resistancedog-14072</code>\n\n"
-            "{i:film} Анимация 60 fps с фоном, узором, названием и номером\n"
-            "{i:brush} <b>Оформление</b>: формат 3:2, 1:1 (аватар) или 9:16 (сторис), своя картинка "
-            "вместо фона, своя подпись или без неё\n"
-            "{i:bell} <b>Следить</b>: напишу, когда у подарка сменится владелец. Список: /watches"
-        ),
+        "help": "{i:info} <b>Как пользоваться</b>\n\nРежим выбирается в разделе «Эмодзи и стикеры» и решает, что делать со стикерами и эмодзи:\n{i:search} <b>ID эмодзи</b>: ID и код для python-telegram-bot, aiogram, Telethon, Pyrogram\n{i:download} <b>Скачать</b>: всё, что пришлёшь подряд, придёт одним zip (.tgs / .webm / .webp)\n{i:brush} <b>Перекрасить</b>: цвет или градиент, тени сохраняются; из пака можно сразу сделать новый набор\n\nВ любом режиме:\n{i:archive} <b>Ссылка на пак</b>: превью всего пака одной картинкой + скачать / перекрасить\n{i:image} <b>Фото</b>: убрать фон, улучшить качество или сделать эмодзи\n{i:magic} <b>GIF или видео</b>: анимированный эмодзи 100×100 в твой личный пак\n{i:gift} <b>Ссылка на подарок</b>: анимация 60 fps, оформление, GIF, архив целиком и слежка за владельцем\n{i:sparkles} <b>Несколько подарков</b> одним сообщением: коллаж в одной анимации",
+        "gifts_help": "{i:gift} <b>NFT-подарки</b>\n\nПришли ссылку на подарок, например:\n<code>https://t.me/nft/resistancedog-14072</code>\n\n{i:film} Анимация 60 fps с фоном, узором, названием и номером\n{i:brush} <b>Оформление</b>: 3:2, 1:1 (аватар) или 9:16 (сторис), своя картинка вместо фона, своя подпись\n{i:download} <b>Скачать</b>: видео, модель .tgs, картинки PNG и данные одним архивом\n{i:sparkles} <b>Коллаж</b>: пришли несколько ссылок одним сообщением\n{i:bell} <b>Следить</b>: напишу, когда у подарка сменится владелец. Список: /watches",
         "maker_help": (
             "{i:magic} <b>Создать эмодзи</b>\n\n"
             "Пришли картинку, фото, GIF или короткое видео, и я сделаю премиум-эмодзи 100×100:\n"
@@ -140,11 +113,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "color_purple": "Фиолетовый",
         "color_pink": "Розовый",
         "color_mono": "Ч/Б",
-        "btn_color_hex": "Свой цвет (HEX)",
+        "btn_color_hex": "Свой цвет или градиент",
         "btn_color_again": "Другой цвет",
         "btn_file": "Файл",
         "btn_make_pack": "Создать пак из этого",
-        "ask_hex": "{i:pipette} Пришли цвет в формате HEX, например <code>#FF8800</code>. /cancel для отмены",
+        "ask_hex": "{i:pipette} Пришли цвет в HEX, например <code>#FF8800</code>, или два цвета для градиента: <code>#5B1A8C #FF8A3D</code> (первый — тени, второй — светлые места). /cancel для отмены",
         "recolor_toast": "Перекрашиваю…",
         "recolor_wait": "{i:brush} Перекрашиваю…",
         "recolor_progress": "{i:brush} Готово {done}/{total}…",
@@ -238,7 +211,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "stats_emoji": "{i:magic} Создано эмодзи: {day} / {week} / {total}",
         "stats_preview": "{i:archive} Превью паков: {day} / {week} / {total}",
         "stats_watches": "{i:bell} Активных слежек: {n}\n\n<i>сутки / неделя / всего</i>",
-        "bc_ask": "{i:megaphone} Пришли сообщение для рассылки: текст, фото, видео, что угодно. Отправлю его копию всем.",
+        "bc_ask": "{i:megaphone} Пришли сообщение для рассылки — оно уйдёт всем ровно таким, как ты его отправишь: текст с жирным, ссылками и премиум-эмодзи, фото, GIF, видео, файл или альбом из нескольких фото/видео.",
         "bc_confirm": "{i:megaphone} Так будет выглядеть рассылка. Отправить {n} пользователям?",
         "bc_progress": "{i:megaphone} Рассылка: {done}/{total} · ✅ {ok} · ❌ {fail}",
         "bc_done": "{i:check} Рассылка завершена: доставлено {ok}, не доставлено {fail}.",
@@ -270,14 +243,68 @@ TEXTS: dict[str, dict[str, str]] = {
         "cmd_language": "🇷🇺/🇺🇸 Язык",
         "cmd_watches": "Слежка за подарками",
         "cmd_help": "Помощь",
+        "color_sunset": "Закат",
+        "color_ocean": "Океан",
+        "color_neon": "Неон",
+        "color_fire": "Огонь",
+        "color_forest": "Лес",
+        "color_ice": "Лёд",
+        "stats_collage": "{i:sparkles} Коллажи подарков: {day} / {week} / {total}",
+        "stats_photo": "{i:image} Обработка фото: {day} / {week} / {total}",
+        "btn_section_photo": "Фото",
+        "section_photo": "{i:image} <b>Фото</b>\n\nПришли фото или картинку (лучше файлом — так без сжатия), и выбери, что сделать:\n{i:eraser} <b>Убрать фон</b>: нейросеть вырезает объект в полном разрешении, PNG с прозрачностью\n{i:sparkles} <b>Улучшить</b>: увеличение ×2, шумоподавление, резкость и цвет\n{i:magic} <b>Эмодзи</b>: премиум-эмодзи 100×100 в твой пак\n\nЭмодзи в подписи к фото, например «🔥», — сразу делаю эмодзи с этим значком.",
+        "photo_actions": "{i:image} Что сделать с фото?",
+        "btn_photo_cutout": "Убрать фон",
+        "btn_photo_enhance": "Улучшить",
+        "btn_photo_emoji": "Сделать эмодзи",
+        "photo_wait_bg": "{i:hourglass} Убираю фон…",
+        "photo_wait_up": "{i:hourglass} Улучшаю качество…",
+        "photo_cutout_done": "{i:eraser} Фон убран. PNG с прозрачностью, без сжатия.",
+        "photo_enhance_done": "{i:sparkles} Готово: {width}×{height}, PNG без сжатия.",
+        "photo_failed": "{i:cross} Не получилось обработать это фото.",
+        "btn_collage": "Коллаж",
+        "collage_help": "{i:sparkles} <b>Коллаж из подарков</b>\n\nПришли от 2 до 12 ссылок на подарки <b>одним сообщением</b> — соберу их в одну анимацию 60 fps.\n\nНастраивается всё:\n• форма: карточки, рамки (с отступами или вплотную), круги, пазл\n• фон подарков: фирменный или без него\n• фон коллажа: градиент, живой градиент, тёмный или своё фото\n• подписи, заголовок, формат 1:1, 9:16 или 16:9\n\nПревью меняется сразу, видео собирается по кнопке. GIF — по кнопке под готовым видео.",
+        "collage_offer": "{i:gift} Нашёл подарков: <b>{n}</b>. Собрать их в один коллаж?",
+        "btn_collage_make": "Собрать коллаж ({n})",
+        "btn_collage_separate": "Каждый отдельно",
+        "collage_loading": "Загружаю подарки…",
+        "collage_settings": "{i:sparkles} <b>Коллаж</b> · подарков: {n} · {frame} · {aspect}{animated}\n\nНастрой вид кнопками — превью обновится сразу. Готово? Жми «Собрать видео».",
+        "collage_animated_note": "\n{i:info} На превью живой градиент стоит на месте, в видео он плавно переливается.",
+        "collage_frame_cards": "Карточки",
+        "collage_frame_frames": "Рамки",
+        "collage_frame_circles": "Круги",
+        "collage_frame_puzzle": "Пазл",
+        "collage_gap_on": "С отступами",
+        "collage_gap_off": "Вплотную",
+        "collage_tile_bg_on": "Фон подарков",
+        "collage_tile_bg_off": "Без фона",
+        "collage_bg_gradient": "Градиент",
+        "collage_bg_animated": "Живой градиент",
+        "collage_bg_dark": "Тёмный",
+        "collage_bg_photo": "Своё фото",
+        "btn_collage_palette": "Палитра: {name} ▸",
+        "collage_palette_auto": "по подаркам",
+        "collage_palette_night": "Ночь",
+        "collage_palette_sunset": "Закат",
+        "collage_palette_ocean": "Океан",
+        "collage_palette_aurora": "Сияние",
+        "collage_palette_gold": "Золото",
+        "collage_palette_graphite": "Графит",
+        "collage_captions": "Подписи",
+        "btn_collage_title": "Заголовок",
+        "btn_collage_title_clear": "Убрать заголовок",
+        "aspect_169": "16:9 Широкий",
+        "btn_collage_render": "Собрать видео",
+        "btn_collage_edit": "Изменить",
+        "collage_wait": "{i:hourglass} Собираю коллаж из {n} подарков…",
+        "collage_ask_photo": "{i:image} Пришли фото для фона коллажа. /cancel для отмены",
+        "collage_ask_title": "{i:edit} Пришли заголовок (до {n} символов), например «Розыгрыш». /cancel для отмены",
+        "btn_gift_download": "Скачать подарок",
+        "gift_download_wait": "Собираю архив…",
+        "gift_download_done": "{i:archive} Подарок целиком: видео MP4, модель .tgs, кадр и модель без фона в PNG, символ и данные.",
     },
     "en": {
-        "menu": (
-            "{i:sparkles} <b>Emoji Studio</b>\n\n"
-            "{i:sticker} <b>Emoji & stickers</b>: IDs and code, zip download, recolor, your own emoji\n"
-            "{i:gift} <b>NFT gifts</b>: 60 fps animation, styling and owner tracking\n\n"
-            "Pick a section or just send a sticker, emoji or link."
-        ),
+        "menu": "{i:sparkles} <b>Emoji Studio</b>\n\n{i:sticker} <b>Emoji & stickers</b>: IDs and code, zip download, recolor with a color or gradient\n{i:gift} <b>NFT gifts</b>: 60 fps animation, collages, download and owner tracking\n{i:image} <b>Photo</b>: neural background removal, enhancement, emoji\n\nPick a section or just send a sticker, emoji, photo or link.",
         "section_stickers": (
             "{i:sticker} <b>Emoji & stickers</b>\n\n"
             "The mode decides what happens to the stickers and emoji you send:\n"
@@ -313,30 +340,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "lang_set": "Language: English",
         "cancelled": "{i:cross} Cancelled.",
         "myid": "{i:user} Your ID: <code>{id}</code>\nAdd it to ADMIN_IDS in .env to unlock the admin panel.",
-        "help": (
-            "{i:info} <b>How to use</b>\n\n"
-            "Pick a mode in /start; it decides what happens to stickers and emoji:\n"
-            "{i:search} <b>Emoji ID</b>: ID and code for python-telegram-bot, aiogram, Telethon, Pyrogram\n"
-            "{i:download} <b>Download</b>: everything you send in a row arrives as one zip (.tgs / .webm / .webp)\n"
-            "{i:brush} <b>Recolor</b>: pick a color, get the recolored sticker or pack, "
-            "and turn a recolored pack into a new set\n\n"
-            "In any mode:\n"
-            "{i:archive} <b>Pack link</b> (<code>t.me/addemoji/…</code>, <code>t.me/addstickers/…</code>): "
-            "a preview of the whole pack in one image + download / recolor\n"
-            "{i:magic} <b>Image, GIF or video</b>: I'll make a 100×100 premium emoji and add it to your personal pack. "
-            "An emoji in the image caption becomes its icon\n"
-            "{i:gift} <b>Gift link</b> (<code>t.me/nft/…</code>): 60 fps animation, styling "
-            "(post, avatar, story, custom background and caption), GIF, .tgs and owner tracking"
-        ),
-        "gifts_help": (
-            "{i:gift} <b>NFT gifts</b>\n\n"
-            "Send a gift link, for example:\n"
-            "<code>https://t.me/nft/resistancedog-14072</code>\n\n"
-            "{i:film} 60 fps animation with backdrop, pattern, name and number\n"
-            "{i:brush} <b>Styling</b>: 3:2, 1:1 (avatar) or 9:16 (story), your own image "
-            "as background, custom caption or none\n"
-            "{i:bell} <b>Track</b>: I'll message you when the gift changes owner. List: /watches"
-        ),
+        "help": "{i:info} <b>How to use</b>\n\nThe mode in “Emoji & stickers” decides what happens to stickers and emoji:\n{i:search} <b>Emoji ID</b>: ID and code for python-telegram-bot, aiogram, Telethon, Pyrogram\n{i:download} <b>Download</b>: everything you send in a row arrives as one zip (.tgs / .webm / .webp)\n{i:brush} <b>Recolor</b>: a color or gradient, shading kept; a recolored pack can become a new set\n\nIn any mode:\n{i:archive} <b>Pack link</b>: a preview of the whole pack + download / recolor\n{i:image} <b>Photo</b>: remove background, enhance or make an emoji\n{i:magic} <b>GIF or video</b>: a 100×100 animated emoji for your personal pack\n{i:gift} <b>Gift link</b>: 60 fps animation, styling, GIF, full archive and owner tracking\n{i:sparkles} <b>Several gifts</b> in one message: a collage in one animation",
+        "gifts_help": "{i:gift} <b>NFT gifts</b>\n\nSend a gift link, for example:\n<code>https://t.me/nft/resistancedog-14072</code>\n\n{i:film} 60 fps animation with backdrop, pattern, name and number\n{i:brush} <b>Styling</b>: 3:2, 1:1 (avatar) or 9:16 (story), your own background, custom caption\n{i:download} <b>Download</b>: video, .tgs model, PNG images and data in one archive\n{i:sparkles} <b>Collage</b>: send several links in one message\n{i:bell} <b>Track</b>: I'll message you when the owner changes. List: /watches",
         "maker_help": (
             "{i:magic} <b>Create emoji</b>\n\n"
             "Send an image, photo, GIF or short video and I'll make a 100×100 premium emoji:\n"
@@ -405,11 +410,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "color_purple": "Purple",
         "color_pink": "Pink",
         "color_mono": "B/W",
-        "btn_color_hex": "Custom color (HEX)",
+        "btn_color_hex": "Custom color or gradient",
         "btn_color_again": "Another color",
         "btn_file": "File",
         "btn_make_pack": "Create a pack from this",
-        "ask_hex": "{i:pipette} Send a HEX color, e.g. <code>#FF8800</code>. /cancel to cancel",
+        "ask_hex": "{i:pipette} Send a HEX color, e.g. <code>#FF8800</code>, or two colors for a gradient: <code>#5B1A8C #FF8A3D</code> (first for shadows, second for highlights). /cancel to cancel",
         "recolor_toast": "Recoloring…",
         "recolor_wait": "{i:brush} Recoloring…",
         "recolor_progress": "{i:brush} Done {done}/{total}…",
@@ -499,7 +504,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "stats_emoji": "{i:magic} Emoji created: {day} / {week} / {total}",
         "stats_preview": "{i:archive} Pack previews: {day} / {week} / {total}",
         "stats_watches": "{i:bell} Active tracking: {n}\n\n<i>day / week / all time</i>",
-        "bc_ask": "{i:megaphone} Send the message to broadcast: text, photo, video, anything. I'll send a copy to everyone.",
+        "bc_ask": "{i:megaphone} Send the broadcast message — everyone gets it exactly as you send it: text with bold, links and premium emoji, a photo, GIF, video, file or an album of several photos/videos.",
         "bc_confirm": "{i:megaphone} This is how the broadcast will look. Send it to {n} users?",
         "bc_progress": "{i:megaphone} Broadcast: {done}/{total} · ✅ {ok} · ❌ {fail}",
         "bc_done": "{i:check} Broadcast finished: delivered {ok}, failed {fail}.",
@@ -530,6 +535,65 @@ TEXTS: dict[str, dict[str, str]] = {
         "cmd_language": "🇷🇺/🇺🇸 Language",
         "cmd_watches": "Gift tracking",
         "cmd_help": "Help",
+        "color_sunset": "Sunset",
+        "color_ocean": "Ocean",
+        "color_neon": "Neon",
+        "color_fire": "Fire",
+        "color_forest": "Forest",
+        "color_ice": "Ice",
+        "stats_collage": "{i:sparkles} Gift collages: {day} / {week} / {total}",
+        "stats_photo": "{i:image} Photo edits: {day} / {week} / {total}",
+        "btn_section_photo": "Photo",
+        "section_photo": "{i:image} <b>Photo</b>\n\nSend a photo or image (as a file is best — no compression) and pick an action:\n{i:eraser} <b>Remove background</b>: a neural network cuts the subject out at full resolution, PNG with transparency\n{i:sparkles} <b>Enhance</b>: ×2 upscale, denoise, sharpening and color\n{i:magic} <b>Emoji</b>: a 100×100 premium emoji for your pack\n\nAn emoji in the caption, e.g. “🔥”, makes an emoji right away with that icon.",
+        "photo_actions": "{i:image} What should I do with this photo?",
+        "btn_photo_cutout": "Remove background",
+        "btn_photo_enhance": "Enhance",
+        "btn_photo_emoji": "Make emoji",
+        "photo_wait_bg": "{i:hourglass} Removing the background…",
+        "photo_wait_up": "{i:hourglass} Enhancing…",
+        "photo_cutout_done": "{i:eraser} Background removed. PNG with transparency, uncompressed.",
+        "photo_enhance_done": "{i:sparkles} Done: {width}×{height}, uncompressed PNG.",
+        "photo_failed": "{i:cross} Couldn't process this photo.",
+        "btn_collage": "Collage",
+        "collage_help": "{i:sparkles} <b>Gift collage</b>\n\nSend 2 to 12 gift links <b>in one message</b> and I'll put them into one 60 fps animation.\n\nEverything is adjustable:\n• shape: cards, frames (spaced or tight), circles, puzzle\n• gift backdrops: on or off\n• collage background: gradient, living gradient, dark or your photo\n• captions, title, 1:1, 9:16 or 16:9\n\nThe preview updates instantly; the video is built on a tap. GIF is under the finished video.",
+        "collage_offer": "{i:gift} Gifts found: <b>{n}</b>. Put them into one collage?",
+        "btn_collage_make": "Make a collage ({n})",
+        "btn_collage_separate": "One by one",
+        "collage_loading": "Loading gifts…",
+        "collage_settings": "{i:sparkles} <b>Collage</b> · gifts: {n} · {frame} · {aspect}{animated}\n\nAdjust the look with the buttons; the preview updates right away. Ready? Tap “Build video”.",
+        "collage_animated_note": "\n{i:info} The living gradient is still in the preview and flows smoothly in the video.",
+        "collage_frame_cards": "Cards",
+        "collage_frame_frames": "Frames",
+        "collage_frame_circles": "Circles",
+        "collage_frame_puzzle": "Puzzle",
+        "collage_gap_on": "Spaced",
+        "collage_gap_off": "Tight",
+        "collage_tile_bg_on": "Gift backdrops",
+        "collage_tile_bg_off": "No backdrop",
+        "collage_bg_gradient": "Gradient",
+        "collage_bg_animated": "Living gradient",
+        "collage_bg_dark": "Dark",
+        "collage_bg_photo": "My photo",
+        "btn_collage_palette": "Palette: {name} ▸",
+        "collage_palette_auto": "from gifts",
+        "collage_palette_night": "Night",
+        "collage_palette_sunset": "Sunset",
+        "collage_palette_ocean": "Ocean",
+        "collage_palette_aurora": "Aurora",
+        "collage_palette_gold": "Gold",
+        "collage_palette_graphite": "Graphite",
+        "collage_captions": "Captions",
+        "btn_collage_title": "Title",
+        "btn_collage_title_clear": "Remove title",
+        "aspect_169": "16:9 Wide",
+        "btn_collage_render": "Build video",
+        "btn_collage_edit": "Edit",
+        "collage_wait": "{i:hourglass} Building a collage of {n} gifts…",
+        "collage_ask_photo": "{i:image} Send a photo for the collage background. /cancel to cancel",
+        "collage_ask_title": "{i:edit} Send a title (up to {n} characters), e.g. “Giveaway”. /cancel to cancel",
+        "btn_gift_download": "Download gift",
+        "gift_download_wait": "Packing the archive…",
+        "gift_download_done": "{i:archive} The whole gift: MP4 video, .tgs model, a frame and the model without background as PNG, symbol and data.",
     },
 }
 

@@ -16,17 +16,17 @@ def plain(text: str) -> str:
     return TAG_RE.sub("", TG_EMOJI_RE.sub(r"\1", text))
 
 
-def tg_emoji(eid: str, alt: str) -> str:
+def tg_emoji(emoji_id: str, alt: str) -> str:
     # Повторить чужой премиум-эмодзи можно при тех же условиях, что и наши иконки
-    return f'<tg-emoji emoji-id="{eid}">{alt}</tg-emoji>' if icons.enabled else alt
+    return f'<tg-emoji emoji-id="{emoji_id}">{alt}</tg-emoji>' if icons.enabled else alt
 
 
-def kb(*rows) -> InlineKeyboardMarkup:
+def keyboard(*rows) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[list(row) for row in rows if row])
 
 
 def menu_button_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb([icons.button(t(lang, "btn_menu"), "home", callback_data="menu")])
+    return keyboard([icons.button(t(lang, "btn_menu"), "home", callback_data="menu")])
 
 
 async def heavy_ok(event: Message | CallbackQuery, limits: Limits, lang: str, is_admin: bool) -> bool:

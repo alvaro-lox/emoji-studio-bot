@@ -8,7 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 MODES = ("id", "dl", "color")
-EVENT_KINDS = ("gift", "zip", "recolor", "emoji", "preview")
+EVENT_KINDS = ("gift", "collage", "zip", "recolor", "emoji", "photo", "preview")
 
 
 @dataclass

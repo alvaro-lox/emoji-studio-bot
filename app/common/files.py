@@ -12,9 +12,9 @@ log = logging.getLogger(__name__)
 
 async def read_file(bot: Bot, file_id: str) -> bytes:
     """Файл целиком в память. Ошибки Telegram пробрасываются как есть."""
-    buf = io.BytesIO()
-    await bot.download(file_id, destination=buf)
-    return buf.getvalue()
+    buffer = io.BytesIO()
+    await bot.download(file_id, destination=buffer)
+    return buffer.getvalue()
 
 
 async def download(bot: Bot, file_id: str, slots: asyncio.Semaphore, attempts: int = 3) -> bytes | None:

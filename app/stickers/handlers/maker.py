@@ -16,7 +16,7 @@ from app.common.i18n import t
 from app.common.icons import icons
 from app.common.limits import Limits
 from app.common.storage import Storage, TokenStore
-from app.common.ui import heavy_ok, kb
+from app.common.ui import heavy_ok, keyboard
 from app.stickers.emoji_maker import first_emoji, make_static, make_video, preview, video_frame
 from app.stickers.packs import add_to_user_pack, input_sticker, set_link, user_pack_name
 
@@ -26,7 +26,7 @@ router = Router()
 MAX_SOURCE = 20 * 1024 * 1024  # больше бот скачать не может
 
 
-def _source(message: Message):
+def media_source(message: Message):
     """(file, тип 'static' | 'video', расширение) или None."""
     if message.photo:
         return message.photo[-1], "static", ".jpg"
@@ -59,11 +59,12 @@ def maker_kb(lang: str, token: str, state: dict):
             icons.button(
                 t(lang, "btn_png" if state["kind"] == "static" else "btn_webm"),
                 "file",
+                "primary",
                 callback_data=f"mk:file:{token}",
             )
         ]
     )
-    return kb(*rows)
+    return keyboard(*rows)
 
 
 def _build(state: dict) -> tuple[bytes, bytes]:
@@ -80,22 +81,14 @@ def _caption(lang: str, state: dict) -> str:
     return t(lang, key, emoji=state["emoji"])
 
 
-@router.message(F.photo | F.animation | F.video | F.video_note | F.document)
-async def on_media(message: Message, bot: Bot, lang: str, blobs: TokenStore, limits: Limits, is_admin: bool) -> None:
-    source = _source(message)
-    if not source:
-        await message.answer(t(lang, "nothing_found"))
-        return
-    file, kind, ext = source
-    if (file.file_size or 0) > MAX_SOURCE:
-        await message.answer(t(lang, "file_too_big"))
-        return
-    if not await heavy_ok(message, limits, lang, is_admin):
-        return
+async def make_emoji(
+    message: Message, bot: Bot, lang: str, file_id: str, kind: str, ext: str, emoji: str, blobs: TokenStore
+) -> None:
+    """Скачивает исходник, делает эмодзи и отвечает карточкой с превью и кнопками."""
     status = await message.answer(t(lang, "maker_wait"))
     try:
-        data = await read_file(bot, file.file_id)
-        state = {"src": data, "kind": kind, "ext": ext, "bg": False, "emoji": first_emoji(message.caption) or "⭐"}
+        data = await read_file(bot, file_id)
+        state = {"src": data, "kind": kind, "ext": ext, "bg": False, "emoji": emoji}
         state["result"], shot = await asyncio.to_thread(_build, state)
     except Exception:
         log.exception("Не удалось сделать эмодзи")
@@ -110,6 +103,22 @@ async def on_media(message: Message, bot: Bot, lang: str, blobs: TokenStore, lim
     )
     with suppress(TelegramBadRequest):
         await status.delete()
+
+
+@router.message(F.photo | F.animation | F.video | F.video_note | F.document)
+async def on_media(message: Message, bot: Bot, lang: str, blobs: TokenStore, limits: Limits, is_admin: bool) -> None:
+    source = media_source(message)
+    if not source:
+        await message.answer(t(lang, "nothing_found"))
+        return
+    file, kind, ext = source
+    if (file.file_size or 0) > MAX_SOURCE:
+        await message.answer(t(lang, "file_too_big"))
+        return
+    if not await heavy_ok(message, limits, lang, is_admin):
+        return
+    emoji = first_emoji(message.caption) or "⭐"
+    await make_emoji(message, bot, lang, file.file_id, kind, ext, emoji, blobs)
 
 
 @router.callback_query(F.data.startswith("mk:"))
@@ -157,7 +166,7 @@ async def cb_maker(call: CallbackQuery, bot: Bot, lang: str, blobs: TokenStore, 
         await db.log_event("emoji", call.from_user.id)
         await call.message.answer(
             t(lang, "maker_added", n=count),
-            reply_markup=kb(
+            reply_markup=keyboard(
                 [icons.button(t(lang, "btn_open_pack"), "archive", "success", url=set_link(name, "custom_emoji"))]
             ),
         )
@@ -176,7 +185,7 @@ async def cb_my_pack(call: CallbackQuery, bot: Bot, lang: str) -> None:
         return
     await call.message.answer(
         t(lang, "mypack", n=count),
-        reply_markup=kb(
+        reply_markup=keyboard(
             [icons.button(t(lang, "btn_open_pack"), "archive", "success", url=set_link(name, "custom_emoji"))]
         ),
     )

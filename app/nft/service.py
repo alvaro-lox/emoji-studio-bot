@@ -1,16 +1,21 @@
 """Загрузка, рендер и кэширование анимаций подарков."""
 
 import asyncio
+import hashlib
+import io
+import json
 import logging
 import time
+import zipfile
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 
 import aiohttp
 
 from app.config import Config
+from app.nft.collage import CollageGift, CollageStyle, preview_collage, render_collage
 from app.nft.parser import GiftInfo, fetch_assets, fetch_gift
-from app.nft.render import GiftStyle, RenderResult, make_gif, render_gift
+from app.nft.render import GiftStyle, RenderResult, make_gif, render_gift, render_model_png, render_still
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +34,18 @@ class GiftService:
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._gifts: OrderedDict[str, tuple[GiftInfo, bytes, bytes | None]] = OrderedDict()
         self._loaded: dict[str, float] = {}
+        self._renders: dict[str, RenderResult] = {}  # готовые файлы: второй раз не рендерим
+
+    async def _render_once(self, path: Path, render) -> RenderResult:
+        """Один рендер на файл: параллельные запросы ждут первый, повторные берут готовое."""
+        async with self._locks[f"render:{path.name}"]:
+            done = self._renders.get(path.name)
+            if done and path.exists():
+                return done
+            async with self._slots:
+                result = await asyncio.to_thread(render)
+            self._renders[path.name] = result
+            return result
 
     def cleanup(self) -> None:
         """Удаляет старые рендеры: в Telegram они уже лежат по file_id."""
@@ -74,9 +91,9 @@ class GiftService:
         style = style or GiftStyle()
         info, model, pattern = await self.load(slug)
         path = self._video_path(info, variant, style)
-        async with self._locks[f"video:{path.name}"], self._slots:
-            return await asyncio.to_thread(
-                render_gift,
+        return await self._render_once(
+            path,
+            lambda: render_gift(
                 info,
                 model,
                 pattern,
@@ -85,7 +102,8 @@ class GiftService:
                 with_backdrop=variant == "f",
                 font_path=self.config.font_path,
                 style=style,
-            )
+            ),
+        )
 
     async def gif(self, slug: str, variant: str) -> Path:
         info = await self.info(slug)
@@ -97,4 +115,69 @@ class GiftService:
             if not gif.exists():
                 async with self._slots:
                     await asyncio.to_thread(make_gif, mp4, gif)
+        return gif
+
+    # ---------- скачать подарок целиком ----------
+
+    async def archive(self, slug: str) -> bytes:
+        """Zip: анимация MP4, модель .tgs, кадр с фоном и модель без фона в PNG, данные подарка."""
+        info, model, pattern = await self.load(slug)
+        variant = "f" if info.has_backdrop else "n"
+        video = await self.video(slug, variant)
+        async with self._slots:
+            still, model_png = await asyncio.gather(
+                asyncio.to_thread(render_still, info, model, pattern, self.config.gift_scale, info.has_backdrop),
+                asyncio.to_thread(render_model_png, model),
+            )
+        details = {
+            "title": info.title,
+            "number": info.number,
+            "link": info.link,
+            "owner": info.owner,
+            "model": info.model.__dict__ if info.model else None,
+            "backdrop": info.backdrop.__dict__ if info.backdrop else None,
+            "symbol": info.symbol.__dict__ if info.symbol else None,
+            "colors": {"center": info.center_color, "edge": info.edge_color, "pattern": info.pattern_color},
+        }
+        name = info.slug.lower()
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.write(video.path, f"{name}/{name}.mp4", compress_type=zipfile.ZIP_STORED)
+            archive.writestr(f"{name}/{name}.tgs", model, compress_type=zipfile.ZIP_STORED)
+            archive.writestr(f"{name}/{name}.png", still, compress_type=zipfile.ZIP_STORED)
+            archive.writestr(f"{name}/{name}_model.png", model_png, compress_type=zipfile.ZIP_STORED)
+            if pattern:
+                archive.writestr(f"{name}/{name}_symbol.webp", pattern, compress_type=zipfile.ZIP_STORED)
+            archive.writestr(f"{name}/info.json", json.dumps(details, ensure_ascii=False, indent=2))
+        return buffer.getvalue()
+
+    # ---------- коллаж ----------
+
+    async def collage_gifts(self, slugs: list[str]) -> list[CollageGift]:
+        """Все подарки грузятся параллельно; порядок как в сообщении."""
+        loaded = await asyncio.gather(*(self.load(slug) for slug in slugs))
+        return [CollageGift(info, model, pattern) for info, model, pattern in loaded]
+
+    def _collage_path(self, slugs: list[str], style: CollageStyle) -> Path:
+        digest = hashlib.sha1("|".join(s.lower() for s in slugs).encode()).hexdigest()[:10]
+        return self.cache_dir / f"collage_{digest}_{style.key()}.mp4"
+
+    async def collage_preview(self, slugs: list[str], style: CollageStyle) -> bytes:
+        gifts = await self.collage_gifts(slugs)
+        return await asyncio.to_thread(preview_collage, gifts, style, self.config.font_path)
+
+    async def collage(self, slugs: list[str], style: CollageStyle) -> RenderResult:
+        gifts = await self.collage_gifts(slugs)
+        path = self._collage_path(slugs, style)
+        return await self._render_once(path, lambda: render_collage(gifts, style, path, self.config.font_path))
+
+    async def collage_gif(self, slugs: list[str], style: CollageStyle) -> Path:
+        mp4 = self._collage_path(slugs, style)
+        if not mp4.exists():
+            await self.collage(slugs, style)
+        gif = mp4.with_suffix(".gif")
+        async with self._locks[f"gif:{gif.name}"]:
+            if not gif.exists():
+                async with self._slots:
+                    await asyncio.to_thread(make_gif, mp4, gif, 720)
         return gif

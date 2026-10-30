@@ -31,5 +31,12 @@ pythonpath = ["."]
 # aiogram помечает message/from_user/data как Optional, но в наших хендлерах их гарантируют
 # фильтры и тип апдейта (личный чат, callback от кнопки бота), поэтому здесь union-attr — шум.
 [[tool.mypy.overrides]]
-module = ["app.menu", "app.admin.handlers", "app.nft.handlers", "app.stickers.handlers.*"]
+module = [
+    "app.menu",
+    "app.admin.handlers",
+    "app.nft.handlers",
+    "app.nft.collage_handlers",
+    "app.photo.handlers",
+    "app.stickers.handlers.*",
+]
 disable_error_code = ["union-attr"]

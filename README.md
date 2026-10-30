@@ -7,26 +7,38 @@ download whole packs as zip, recolor any pack while keeping its shading, make yo
 and videos, and turn a `t.me/nft/…` link into a 60 fps animation that looks like the Telegram gift card.
 
 ## Features
-The menu has two sections.
+The menu has three sections.
 
 **🧩 Emoji & stickers.** A mode decides what happens to the stickers and emoji you send:
 - **Emoji ID** — the `custom_emoji_id` of each premium emoji, a Copy button and code snippets for
   python-telegram-bot, aiogram, Telethon and Pyrogram. For a whole pack: the ID list plus a JSON file.
 - **Download** — everything you send in a row arrives as one zip (`.tgs` / `.webm` / `.webp`),
   split into several archives to stay under the 50 MB bot upload limit.
-- **Recolor** — 10 preset colors or any HEX. Lightness is preserved, so shadows and highlights survive.
-  The recolored pack can be published as a new Telegram set in one tap.
+- **Recolor** — 10 colors, 6 gradients or your own HEX (one color or two for a gradient).
+  Lightness is preserved, so shadows and highlights survive; a gradient maps shadows to the first color
+  and highlights to the second. The recolored pack can be published as a new Telegram set in one tap.
 
-In any mode, a pack link gives a preview grid of the whole pack, and an image, GIF or video becomes a
-100×100 premium emoji (static PNG or animated WEBM) with optional background removal and a personal pack.
+In any mode, a pack link gives a preview grid of the whole pack, and a GIF or video becomes a
+100×100 animated premium emoji for your personal pack.
 
 **🎁 NFT gifts.** Send `https://t.me/nft/<slug>` and get:
 - a 60 fps MP4 rendered from the gift's Lottie model, backdrop gradient and symbol pattern;
 - styling: 3:2, 1:1 (avatar) or 9:16 (story), your own background image, custom caption or none;
-- a 50 fps GIF and the raw `.tgs` model;
+- a 50 fps GIF, the raw `.tgs` model, or **everything in one zip** (MP4, `.tgs`, PNG frame,
+  transparent model PNG, symbol and metadata);
+- **collages**: send 2–12 links in one message and get them in a single 60 fps animation — cards,
+  frames (spaced or tight), circles or an interlocking puzzle; gift backdrops on or off; static or
+  living gradient, dark or your own photo behind; captions, title, 1:1 / 9:16 / 16:9. A live preview
+  updates on every tap;
 - owner tracking — the bot messages you when the gift changes hands (`/watches`).
 
-**Admin panel** (`/admin`): statistics, broadcast with preview and progress, bans, admin management.
+**🖼 Photo.** Send a photo (as a file for no compression) and pick:
+- **Remove background** — a neural network (rembg, ISNet) cuts the subject out at full resolution;
+- **Enhance** — ×2 upscale, light denoise, sharpening, contrast and color;
+- **Make emoji** — a 100×100 premium emoji.
+
+**Admin panel** (`/admin`): statistics, broadcast of any message exactly as sent (formatting, premium
+emoji, media, albums) with preview and progress, bans, admin management.
 Per-user rate limiting for heavy jobs and an anti-flood guard; admins are exempt.
 
 > Premium icons in messages and buttons only render if the **bot owner has Telegram Premium**.
@@ -64,8 +76,6 @@ sudo apt install python3-venv ffmpeg fonts-inter
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app
 ```
-A systemd unit is in `deploy/emoji-bot.service`. On Windows, `deploy.bat` uploads the bot to a server
-over SSH and starts it in Docker (the password is asked each time and never saved).
 
 ## Configuration (`.env`)
 | Variable | Default | Meaning |
@@ -90,8 +100,9 @@ app/
 ├── main.py            entry point, router order
 ├── config.py          settings from .env
 ├── menu.py            main menu and sections, language, help
-├── nft/               NFT gifts: page parser + Fragment fallback, 60 fps renderer, cache, owner watcher, handlers
+├── nft/               NFT gifts: page parser + Fragment fallback, 60 fps renderer, collages, cache, watcher
 ├── stickers/          emoji & stickers: links and zip, downloader, recolor, emoji maker, pack previews, handlers/
+├── photo/             background removal and enhancement
 ├── admin/             statistics, broadcast, bans, admins
 └── common/            SQLite storage, rate limits, RU/EN texts, icons, keyboards
 ```

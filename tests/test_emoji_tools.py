@@ -101,11 +101,20 @@ def test_main_menu_has_two_sections():
 
 
 def test_stickers_section_marks_current_mode():
-    kb = stickers_kb("ru", "id")
-    styles = [b.style for row in kb.inline_keyboard for b in row]
-    assert styles[:3] == ["primary", "success", "danger"]
-    assert kb.inline_keyboard[0][0].text.endswith("✓")
-    assert kb.inline_keyboard[-1][0].callback_data == "menu"
+    keyboard = stickers_kb("ru", "id")
+    modes = keyboard.inline_keyboard[0]
+    assert [b.style for b in modes] == ["success", "primary", "primary"]  # выбранный — зелёный
+    assert modes[0].text.endswith("✓")
+    assert keyboard.inline_keyboard[-1][0].callback_data == "menu"
+
+
+def test_every_keyboard_row_has_one_style():
+    """В одной строке не смешиваем цветные и бесцветные кнопки (кроме выбора режима)."""
+    from app.menu import gifts_kb
+
+    for keyboard in (menu_kb("ru", is_admin=True), gifts_kb("ru")):
+        for row in keyboard.inline_keyboard:
+            assert len({b.style for b in row}) == 1, [b.text for b in row]
 
 
 def test_storage_roundtrip(tmp_path):

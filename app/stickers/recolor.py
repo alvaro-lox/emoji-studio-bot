@@ -1,7 +1,11 @@
-"""Перекраска стикеров: .tgs (Lottie) правкой цветов в JSON, .webp — через HLS-тонирование.
+"""Перекраска стикеров: .tgs (Lottie) правкой цветов в JSON, .webp — попиксельно.
 
 Тонирование сохраняет светлоту каждого цвета и меняет оттенок/насыщенность на целевые,
 поэтому тени, блики и объём рисунка остаются, а сам рисунок становится нужного цвета.
+Градиент работает так же, только целевой цвет зависит от светлоты: тени берут первый
+цвет, блики — второй (gradient map).
+
+Цвет задаётся строкой: "#RRGGBB" или градиент "#RRGGBB-#RRGGBB".
 """
 
 import colorsys
@@ -27,12 +31,33 @@ PRESETS: dict[str, tuple[str, str, str | None]] = {
     "mono": ("#808080", "⚫", None),
 }
 
-HEX_RE = re.compile(r"^#?([0-9a-fA-F]{6})$")
+# ключ: (градиент, эмодзи для кнопки)
+GRADIENTS: dict[str, tuple[str, str]] = {
+    "sunset": ("#5B1A8C-#FF8A3D", "🌇"),
+    "ocean": ("#0B3D91-#4FE3E8", "🌊"),
+    "neon": ("#3A0CA3-#F72585", "💜"),
+    "fire": ("#8B0000-#FFD23F", "🔥"),
+    "forest": ("#0B4F2E-#B5E655", "🌿"),
+    "ice": ("#1B4F9C-#E8F6FF", "🧊"),
+}
+
+HEX_RE = re.compile(r"#?([0-9a-fA-F]{6})")
 
 
 def parse_hex(text: str) -> str | None:
-    m = HEX_RE.match(text.strip())
-    return f"#{m.group(1).upper()}" if m else None
+    """Один цвет HEX или None."""
+    colors = HEX_RE.findall(text)
+    return f"#{colors[0].upper()}" if len(colors) == 1 and len(text.strip()) <= 7 else None
+
+
+def parse_color_spec(text: str) -> str | None:
+    """«#ff0000» → "#FF0000", «#ff0000 #0000ff» → градиент "#FF0000-#0000FF"."""
+    colors = [f"#{c.upper()}" for c in HEX_RE.findall(text)]
+    if len(colors) == 1 and len(text.strip()) <= 7:
+        return colors[0]
+    if len(colors) == 2:
+        return "-".join(colors)
+    return None
 
 
 def hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
@@ -41,17 +66,38 @@ def hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
 
 
 class Tint:
-    """Функция цвет → цвет для одного целевого оттенка."""
+    """Функция цвет → цвет. Оттенок и насыщенность — целевые, светлота — исходная."""
 
-    def __init__(self, hex_color: str):
-        r, g, b = hex_to_rgb(hex_color)
-        self.hue, self.light, self.sat = colorsys.rgb_to_hls(r, g, b)
+    def __init__(self, spec: str):
+        self.stops = [hex_to_rgb(color) for color in spec.split("-")[:2]]
+
+    def target(self, light: float) -> tuple[float, float]:
+        """(оттенок, насыщенность) цели для данной светлоты."""
+        if len(self.stops) == 1:
+            r, g, b = self.stops[0]
+        else:
+            (r0, g0, b0), (r1, g1, b1) = self.stops
+            mix = light * light * (3 - 2 * light)  # smoothstep: середина мягче, края чище
+            r, g, b = r0 + (r1 - r0) * mix, g0 + (g1 - g0) * mix, b0 + (b1 - b0) * mix
+        hue, _, sat = colorsys.rgb_to_hls(r, g, b)
+        return hue, sat
+
+    def map(self, light: float, sat: float) -> tuple[float, float, float]:
+        hue, target_sat = self.target(light)
+        # серые участки тоже окрашиваем, но чуть слабее насыщенных
+        return colorsys.hls_to_rgb(hue, light, target_sat * (0.55 + 0.45 * sat))
 
     def __call__(self, r: float, g: float, b: float) -> tuple[float, float, float]:
         _, light, sat = colorsys.rgb_to_hls(r, g, b)
-        # серые участки тоже окрашиваем, но чуть слабее насыщенных
-        new_sat = self.sat * (0.55 + 0.45 * sat)
-        return colorsys.hls_to_rgb(self.hue, light, new_sat)
+        return self.map(light, sat)
+
+    def lookup_table(self, light_steps: int = 256, sat_steps: int = 33) -> np.ndarray:
+        """Таблица (светлота × насыщенность) → RGB для быстрой перекраски картинок."""
+        table = np.empty((light_steps, sat_steps, 3), dtype=np.float32)
+        for li in range(light_steps):
+            for si in range(sat_steps):
+                table[li, si] = self.map(li / (light_steps - 1), si / (sat_steps - 1))
+        return table
 
 
 def _tint_list(values: list, tint: Tint, offset: int = 0) -> list:
@@ -106,39 +152,27 @@ def recolor_lottie(data, tint: Tint) -> None:
                 recolor_lottie(item, tint)
 
 
-def recolor_tgs(tgs: bytes, hex_color: str) -> bytes:
+def recolor_tgs(tgs: bytes, spec: str) -> bytes:
     data = json.loads(gzip.decompress(tgs))
-    recolor_lottie(data, Tint(hex_color))
+    recolor_lottie(data, Tint(spec))
     return gzip.compress(json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode(), compresslevel=9)
 
 
-def recolor_image(image_bytes: bytes, hex_color: str, fmt: str = "WEBP") -> bytes:
+def recolor_image(image_bytes: bytes, spec: str, fmt: str = "WEBP") -> bytes:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
     rgba = np.asarray(image, dtype=np.float32) / 255
     rgb = rgba[..., :3]
-    # HLS-тонирование в numpy: светлота сохраняется, оттенок и насыщенность — целевые
     cmax, cmin = rgb.max(-1), rgb.min(-1)
     light = (cmax + cmin) / 2
-    delta = cmax - cmin
-    sat = np.where(delta == 0, 0, delta / np.maximum(1e-6, 1 - np.abs(2 * light - 1)))
-    tint = Tint(hex_color)
-    new_sat = tint.sat * (0.55 + 0.45 * np.clip(sat, 0, 1))
-    chroma = (1 - np.abs(2 * light - 1)) * new_sat
-    h6 = tint.hue * 6
-    x = chroma * (1 - abs(h6 % 2 - 1))
-    sector = int(h6) % 6
-    zero = np.zeros_like(chroma)
-    r, g, b = [
-        (chroma, x, zero),
-        (x, chroma, zero),
-        (zero, chroma, x),
-        (zero, x, chroma),
-        (x, zero, chroma),
-        (chroma, zero, x),
-    ][sector]
-    m = light - chroma / 2
-    out = np.stack([r + m, g + m, b + m, rgba[..., 3]], -1)
+    chroma = cmax - cmin
+    sat = np.clip(chroma / np.maximum(1e-6, 1 - np.abs(2 * light - 1)), 0, 1)
+
+    table = Tint(spec).lookup_table()
+    light_index = np.rint(light * (table.shape[0] - 1)).astype(np.intp)
+    sat_index = np.rint(sat * (table.shape[1] - 1)).astype(np.intp)
+    out = np.concatenate([table[light_index, sat_index], rgba[..., 3:4]], -1)
+
     result = Image.fromarray(np.clip(out * 255 + 0.5, 0, 255).astype(np.uint8), "RGBA")
-    buf = io.BytesIO()
-    result.save(buf, fmt, lossless=True) if fmt == "WEBP" else result.save(buf, fmt)
-    return buf.getvalue()
+    buffer = io.BytesIO()
+    result.save(buffer, fmt, lossless=True) if fmt == "WEBP" else result.save(buffer, fmt)
+    return buffer.getvalue()

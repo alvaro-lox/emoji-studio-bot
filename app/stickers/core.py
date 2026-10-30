@@ -72,20 +72,20 @@ def _utf16_len(s: str) -> int:
 def emoji_code(lib: str, items: list[tuple[str, str]]) -> str:
     """Готовый код отправки премиум-эмодзи для выбранной библиотеки."""
     if lib in ("ptb", "aiogram"):
-        html = "".join(f'<tg-emoji emoji-id="{eid}">{alt}</tg-emoji>' for eid, alt in items)
+        html = "".join(f'<tg-emoji emoji-id="{emoji_id}">{alt}</tg-emoji>' for emoji_id, alt in items)
         call = "message.reply_text" if lib == "ptb" else "message.answer"
         return f"await {call}(\n    '{html}',\n    parse_mode=\"HTML\",\n)"
     if lib == "pyrogram":
-        html = "".join(f'<emoji id="{eid}">{alt}</emoji>' for eid, alt in items)
+        html = "".join(f'<emoji id="{emoji_id}">{alt}</emoji>' for emoji_id, alt in items)
         return (
             "from pyrogram.enums import ParseMode\n\n"
             f"await message.reply(\n    '{html}',\n    parse_mode=ParseMode.HTML,\n)"
         )
     if lib == "telethon":
         text, entities, offset = "", [], 0
-        for eid, alt in items:
+        for emoji_id, alt in items:
             length = _utf16_len(alt)
-            entities.append(f"    MessageEntityCustomEmoji({offset}, {length}, {eid}),")
+            entities.append(f"    MessageEntityCustomEmoji({offset}, {length}, {emoji_id}),")
             text += alt
             offset += length
         return (
@@ -122,22 +122,22 @@ def build_zips(entries: list[ZipEntry], max_bytes: int) -> list[bytes]:
     tgs/webp/webm уже сжаты, поэтому ZIP_STORED: быстрее и размер предсказуем.
     """
     parts: list[bytes] = []
-    buf = io.BytesIO()
-    archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED)
+    buffer = io.BytesIO()
+    archive = zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED)
     size = 0
 
     for entry in entries:
         entry_size = len(entry.data) + 2 * len(entry.path.encode()) + ZIP_ENTRY_OVERHEAD
         if size and size + entry_size > max_bytes:  # текущий архив полон — начинаем следующий
             archive.close()
-            parts.append(buf.getvalue())
-            buf = io.BytesIO()
-            archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED)
+            parts.append(buffer.getvalue())
+            buffer = io.BytesIO()
+            archive = zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED)
             size = 0
         archive.writestr(entry.path, entry.data)
         size += entry_size
 
     archive.close()
     if size:
-        parts.append(buf.getvalue())
+        parts.append(buffer.getvalue())
     return parts

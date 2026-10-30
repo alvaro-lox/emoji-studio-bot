@@ -6,3 +6,8 @@ from aiogram.fsm.state import State, StatesGroup
 class GiftStyleForm(StatesGroup):
     background = State()
     text = State()
+
+
+class CollageForm(StatesGroup):
+    photo = State()
+    title = State()

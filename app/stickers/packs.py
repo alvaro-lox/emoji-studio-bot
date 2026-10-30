@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw
 from rlottie_python import LottieAnimation
 
 from app.common.files import download
-from app.nft.render import _font
+from app.nft.render import load_font
 
 log = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ def _decode_frame(data: bytes, kind: str, size: int) -> Image.Image | None:
             # premultiplied → обычная альфа, чтобы края не темнели
             return Image.frombytes("RGBa", frame.size, frame.tobytes()).convert("RGBA")
         if kind == "webm":
-            with tempfile.TemporaryDirectory() as tmp:
-                src = Path(tmp) / "in.webm"
+            with tempfile.TemporaryDirectory() as temp_dir:
+                src = Path(temp_dir) / "in.webm"
                 src.write_bytes(data)
                 png = subprocess.run(
                     [
@@ -109,13 +109,13 @@ def render_grid(images: list[Image.Image | None], title: str, subtitle: str, fon
     canvas = Image.new("RGB", (width, height), GRID_BG)
     draw = ImageDraw.Draw(canvas)
 
-    title_font = _font("bold", 34, font_path)
-    sub_font = _font("regular", 20, font_path)
-    num_font = _font("regular", 14, font_path)
+    title_font = load_font("bold", 34, font_path)
+    subtitle_font = load_font("regular", 20, font_path)
+    number_font = load_font("regular", 14, font_path)
     while draw.textlength(title, font=title_font) > width - pad * 2 and title_font.size > 16:
-        title_font = _font("bold", int(title_font.size) - 2, font_path)
+        title_font = load_font("bold", int(title_font.size) - 2, font_path)
     draw.text((pad, 22), title, font=title_font, fill="#ffffff")
-    draw.text((pad, 64), subtitle, font=sub_font, fill="#8c99a6")
+    draw.text((pad, 64), subtitle, font=subtitle_font, fill="#8c99a6")
 
     for index, image in enumerate(images):
         x = pad + (index % cols) * (cell + gap)
@@ -124,11 +124,11 @@ def render_grid(images: list[Image.Image | None], title: str, subtitle: str, fon
         if image is not None:
             image.thumbnail((cell - 16, cell - 16), Image.Resampling.LANCZOS)
             canvas.paste(image, (x + (cell - image.width) // 2, y + (cell - image.height) // 2), image)
-        draw.text((x + cell - 8, y + cell - 6), str(index + 1), font=num_font, fill="#5d6d7e", anchor="rd")
+        draw.text((x + cell - 8, y + cell - 6), str(index + 1), font=number_font, fill="#5d6d7e", anchor="rd")
 
-    buf = io.BytesIO()
-    canvas.save(buf, "PNG", optimize=True)
-    return buf.getvalue()
+    buffer = io.BytesIO()
+    canvas.save(buffer, "PNG", optimize=True)
+    return buffer.getvalue()
 
 
 def input_sticker(data: bytes, fmt: str, emoji_list: list[str] | None, filename: str) -> InputSticker:

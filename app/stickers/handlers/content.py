@@ -15,8 +15,10 @@ from app.common.i18n import t
 from app.common.icons import icons
 from app.common.limits import Limits
 from app.common.storage import Storage, TokenStore
-from app.common.ui import heavy_ok, kb, menu_button_kb, plain, tg_emoji
+from app.common.ui import heavy_ok, keyboard, menu_button_kb, plain, tg_emoji
 from app.config import Config
+from app.nft.collage import MAX_GIFTS
+from app.nft.collage_handlers import offer_collage
 from app.nft.handlers import send_gift
 from app.nft.service import GiftService
 from app.stickers.core import LIBS, custom_emojis, emoji_code, find_gift_slugs, find_pack_names, sticker_ext
@@ -30,7 +32,6 @@ router = Router()
 MAX_ID_LINES = 40
 MAX_CODE_ITEMS = 50
 PACK_IDS_PER_MESSAGE = 50
-MAX_GIFTS_PER_MESSAGE = 3
 MAX_PACKS_PER_MESSAGE = 3
 COPY_TEXT_LIMIT = 256
 TOKEN_PREFIX = "t."
@@ -50,23 +51,18 @@ async def on_sticker(message: Message, lang: str, mode: str, downloader: Downloa
     if mode == "color":
         await send_palette(message, lang, {"items": [sticker]}, tokens)
         return
-    rows = []
+    info_row = []
     if len(sticker.file_id) <= COPY_TEXT_LIMIT:
-        rows.append(
-            [
-                icons.button(
-                    t(lang, "btn_copy_file_id"), "copy", "primary", copy_text=CopyTextButton(text=sticker.file_id)
-                )
-            ]
-        )
+        copy_id = CopyTextButton(text=sticker.file_id)
+        info_row.append(icons.button(t(lang, "btn_copy_file_id"), "copy", "primary", copy_text=copy_id))
     download_row = [
         icons.button(t(lang, "btn_download"), "download", "success", callback_data=f"dlt:{tokens.put([sticker])}")
     ]
     if sticker.set_name:
         key = downloader.pack_key(sticker.set_name)
+        info_row.append(icons.button(t(lang, "btn_pack_ids"), "search", "primary", callback_data=f"pids:{key}"))
         download_row.append(icons.button(t(lang, "btn_zip"), "archive", "success", callback_data=f"pack:{key}"))
-        rows.append([icons.button(t(lang, "btn_pack_ids"), "search", "primary", callback_data=f"pids:{key}")])
-    rows.append(download_row)
+    rows = [info_row, download_row] if info_row else [download_row]
     rows.append(
         [
             icons.button(
@@ -101,7 +97,7 @@ async def on_text(
 ) -> None:
     text = message.text or message.caption
     packs = find_pack_names(text)[:MAX_PACKS_PER_MESSAGE]
-    slugs = find_gift_slugs(text)[:MAX_GIFTS_PER_MESSAGE]
+    slugs = find_gift_slugs(text)[:MAX_GIFTS]
     if message.caption is not None and not (packs or slugs):
         # картинка/видео с подписью — это заготовка эмодзи, подпись задаёт значок
         raise SkipHandler()
@@ -117,14 +113,15 @@ async def on_text(
         downloader.add(message.chat.id, lang, packs=packs)
     if emojis:
         if mode == "dl":
-            downloader.add(message.chat.id, lang, items=[eid for eid, _ in emojis])
+            downloader.add(message.chat.id, lang, items=[emoji_id for emoji_id, _ in emojis])
         elif mode == "color":
-            await send_palette(message, lang, {"items": [eid for eid, _ in emojis]}, tokens)
+            await send_palette(message, lang, {"items": [emoji_id for emoji_id, _ in emojis]}, tokens)
         else:
             await send_id_card(message, bot, lang, emojis, downloader, tokens)
-    for slug in slugs:
-        if await heavy_ok(message, limits, lang, is_admin):
-            await send_gift(bot, message.chat.id, message.from_user.id, slug, lang, gifts, db)
+    if len(slugs) > 1:  # несколько подарков — предлагаем коллаж или каждый отдельно
+        await offer_collage(message, lang, slugs)
+    elif slugs and await heavy_ok(message, limits, lang, is_admin):
+        await send_gift(bot, message.chat.id, message.from_user.id, slugs[0], lang, gifts, db)
 
 
 # ---------- превью пака ----------
@@ -170,11 +167,8 @@ async def send_pack_preview(
         ids_button = icons.button(
             t(lang, "btn_pack_ids"), "search", "primary", callback_data=f"pids:{downloader.pack_key(name)}"
         )
-        markup = kb(
-            [ids_button] if mode == "id" else None,
-            [zip_button, icons.button(t(lang, "btn_recolor"), "brush", "danger", callback_data=f"rcp:{target_token}")],
-            [open_button],
-        )
+        recolor_button = icons.button(t(lang, "btn_recolor"), "brush", "danger", callback_data=f"rcp:{target_token}")
+        markup = keyboard([ids_button] if mode == "id" else None, [zip_button], [recolor_button], [open_button])
     caption = t(
         lang,
         "preview_caption",
@@ -203,39 +197,41 @@ async def send_pack_preview(
 async def send_id_card(
     message: Message, bot: Bot, lang: str, emojis, downloader: Downloader, tokens: TokenStore
 ) -> None:
-    for eid, alt in emojis:
-        _alt_cache[eid] = alt
+    for emoji_id, alt in emojis:
+        _alt_cache[emoji_id] = alt
 
     if len(emojis) == 1:
-        eid, alt = emojis[0]
+        emoji_id, alt = emojis[0]
         set_name = None
         with suppress(TelegramBadRequest):
-            found = await bot.get_custom_emoji_stickers(custom_emoji_ids=[eid])
+            found = await bot.get_custom_emoji_stickers(custom_emoji_ids=[emoji_id])
             set_name = found[0].set_name if found else None
-        rows = [
-            [
-                icons.button(t(lang, "btn_original", alt=alt), "link", copy_text=CopyTextButton(text=alt)),
-                icons.button(t(lang, "btn_copy_id"), "copy", "primary", copy_text=CopyTextButton(text=eid)),
-            ],
-            [icons.button(t(lang, "btn_code"), "code", "primary", callback_data=f"code:{eid}")],
-        ]
-        download_row = [icons.button(t(lang, "btn_download"), "download", "success", callback_data=f"dl:{eid}")]
+        code_row = [icons.button(t(lang, "btn_code"), "code", "primary", callback_data=f"code:{emoji_id}")]
+        download_row = [icons.button(t(lang, "btn_download"), "download", "success", callback_data=f"dl:{emoji_id}")]
         if set_name:
             key = downloader.pack_key(set_name)
+            code_row.append(icons.button(t(lang, "btn_pack_ids"), "search", "primary", callback_data=f"pids:{key}"))
             download_row.append(icons.button(t(lang, "btn_zip"), "archive", "success", callback_data=f"pack:{key}"))
-            rows.append([icons.button(t(lang, "btn_pack_ids"), "search", "primary", callback_data=f"pids:{key}")])
-        rows.append(download_row)
+        rows = [
+            [
+                icons.button(t(lang, "btn_original", alt=alt), "link", "primary", copy_text=CopyTextButton(text=alt)),
+                icons.button(t(lang, "btn_copy_id"), "copy", "primary", copy_text=CopyTextButton(text=emoji_id)),
+            ],
+            code_row,
+            download_row,
+        ]
         rows.append(
             [
                 icons.button(
-                    t(lang, "btn_recolor"), "brush", "danger", callback_data=f"rcp:{tokens.put({'items': [eid]})}"
+                    t(lang, "btn_recolor"), "brush", "danger", callback_data=f"rcp:{tokens.put({'items': [emoji_id]})}"
                 )
             ]
         )
-        text = t(lang, "id_line", emoji=tg_emoji(eid, alt), id=eid)
+        text = t(lang, "id_line", emoji=tg_emoji(emoji_id, alt), id=emoji_id)
     else:
         lines = [
-            f"{n}. {tg_emoji(eid, alt)} <code>{eid}</code>" for n, (eid, alt) in enumerate(emojis[:MAX_ID_LINES], 1)
+            f"{n}. {tg_emoji(emoji_id, alt)} <code>{emoji_id}</code>"
+            for n, (emoji_id, alt) in enumerate(emojis[:MAX_ID_LINES], 1)
         ]
         if len(emojis) > MAX_ID_LINES:
             lines.append(t(lang, "id_more", n=len(emojis) - MAX_ID_LINES))
@@ -280,10 +276,10 @@ def chooser(lang: str, ref: str, items: list[tuple[str, str]]) -> tuple[str, Inl
     if len(items) == 1:
         head = f"{tg_emoji(*items[0])} <code>{items[0][0]}</code>"
     else:
-        head = "".join(tg_emoji(eid, alt) for eid, alt in items[:20]) + f" ({len(items)})"
+        head = "".join(tg_emoji(emoji_id, alt) for emoji_id, alt in items[:20]) + f" ({len(items)})"
     names = list(LIBS.items())
     rows = [
-        [icons.button(name, callback_data=f"lib:{key}:{ref}") for key, name in names[i : i + 2]]
+        [icons.button(name, style="primary", callback_data=f"lib:{key}:{ref}") for key, name in names[i : i + 2]]
         for i in range(0, len(names), 2)
     ]
     return f"{head}\n\n{t(lang, 'choose_lib')}", InlineKeyboardMarkup(inline_keyboard=rows)
@@ -420,7 +416,7 @@ async def cb_pack_ids(call: CallbackQuery, bot: Bot, lang: str, downloader: Down
     await call.message.answer_document(
         BufferedInputFile(pack_ids_json(sticker_set), filename=f"{name}_ids.json"),
         caption=caption,
-        reply_markup=kb(
+        reply_markup=keyboard(
             [icons.button(t(lang, "btn_zip"), "download", "success", callback_data=f"pack:{key}")],
             [icons.button(t(lang, "btn_open_pack"), "link", url=set_link(name, sticker_set.sticker_type))],
         ),

@@ -3,7 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    U2NET_HOME=/data/models
 
 # ffmpeg кодирует видео, Inter — шрифт подписей как в Telegram (DejaVu — запасной)
 RUN apt-get update \

@@ -15,13 +15,15 @@ from app.admin.states import AdminForm
 from app.common.i18n import t
 from app.common.icons import icons
 from app.common.storage import EVENT_KINDS, Storage
-from app.common.ui import kb, plain
+from app.common.ui import keyboard, plain
 from app.config import Config
 
 log = logging.getLogger(__name__)
 router = Router()
 
-BROADCAST_DELAY = 0.05  # ~20 сообщений в секунду, ниже лимита Telegram
+BROADCAST_BATCH = 25  # Telegram пропускает ~30 сообщений в секунду — шлём пачками по 25
+ALBUM_WAIT = 1.2  # части альбома приходят отдельными апдейтами — ждём, пока придут все
+_albums: dict[str, list[int]] = {}
 _broadcast_tasks: set[asyncio.Task] = set()
 
 
@@ -35,40 +37,46 @@ router.callback_query.filter(IsAdmin())
 
 
 def panel_kb(lang: str, is_owner: bool = False) -> InlineKeyboardMarkup:
-    return kb(
+    return keyboard(
         [
             icons.button(t(lang, "btn_stats"), "stats", "primary", callback_data="adm:stats"),
-            icons.button(t(lang, "btn_broadcast"), "megaphone", "success", callback_data="adm:bc"),
+            icons.button(t(lang, "btn_broadcast"), "megaphone", "primary", callback_data="adm:bc"),
         ],
         [
             icons.button(t(lang, "btn_ban"), "lock", "danger", callback_data="adm:ban"),
-            icons.button(t(lang, "btn_unban"), "unlock", callback_data="adm:unban"),
+            icons.button(t(lang, "btn_unban"), "unlock", "danger", callback_data="adm:unban"),
         ],
-        [icons.button(t(lang, "btn_banned_list"), "users", callback_data="adm:banned")],
-        [icons.button(t(lang, "btn_admins"), "admin", "primary", callback_data="adm:admins")] if is_owner else None,
+        [
+            icons.button(t(lang, "btn_banned_list"), "users", "primary", callback_data="adm:banned"),
+            *(
+                [icons.button(t(lang, "btn_admins"), "admin", "primary", callback_data="adm:admins")]
+                if is_owner
+                else []
+            ),
+        ],
         [icons.button(t(lang, "btn_menu"), "home", callback_data="menu")],
     )
 
 
 def back_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
+    return keyboard([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
 
 
-def stats_text(lang: str, s: dict) -> str:
-    langs = " · ".join(f"{code} {n}" for code, n in s["langs"].items()) or "—"
+def stats_text(lang: str, stats: dict) -> str:
+    langs = " · ".join(f"{code} {n}" for code, n in stats["langs"].items()) or "—"
     lines = [
         t(lang, "stats_head"),
         "",
-        t(lang, "stats_users", **{k: s[k] for k in ("users", "new_day", "new_week")}),
-        t(lang, "stats_active", day=s["active_day"], week=s["active_week"]),
-        t(lang, "stats_banned", banned=s["banned"], blocked=s["blocked"]),
+        t(lang, "stats_users", **{key: stats[key] for key in ("users", "new_day", "new_week")}),
+        t(lang, "stats_active", day=stats["active_day"], week=stats["active_week"]),
+        t(lang, "stats_banned", banned=stats["banned"], blocked=stats["blocked"]),
         t(lang, "stats_langs", langs=langs),
         "",
     ]
     for kind in EVENT_KINDS:
-        day, week, total = s["events"][kind]
+        day, week, total = stats["events"][kind]
         lines.append(t(lang, f"stats_{kind}", day=day, week=week, total=total))
-    lines.append(t(lang, "stats_watches", n=s["watches"]))
+    lines.append(t(lang, "stats_watches", n=stats["watches"]))
     return "\n".join(lines)
 
 
@@ -80,17 +88,19 @@ async def _edit(call: CallbackQuery, text: str, markup: InlineKeyboardMarkup) ->
 @router.message(Command("admin"))
 async def cmd_admin(message: Message, lang: str, is_owner: bool, state: FSMContext, db: Storage) -> None:
     await state.clear()
-    s = await db.stats()
+    stats = await db.stats()
     await message.answer(
-        t(lang, "admin_panel", users=s["users"], active=s["active_day"]), reply_markup=panel_kb(lang, is_owner)
+        t(lang, "admin_panel", users=stats["users"], active=stats["active_day"]), reply_markup=panel_kb(lang, is_owner)
     )
 
 
 @router.callback_query(F.data == "admin")
 async def cb_admin(call: CallbackQuery, lang: str, is_owner: bool, state: FSMContext, db: Storage) -> None:
     await state.clear()
-    s = await db.stats()
-    await _edit(call, t(lang, "admin_panel", users=s["users"], active=s["active_day"]), panel_kb(lang, is_owner))
+    stats = await db.stats()
+    await _edit(
+        call, t(lang, "admin_panel", users=stats["users"], active=stats["active_day"]), panel_kb(lang, is_owner)
+    )
     await call.answer()
 
 
@@ -101,8 +111,8 @@ async def cmd_stats(message: Message, lang: str, db: Storage) -> None:
 
 @router.callback_query(F.data == "adm:stats")
 async def cb_stats(call: CallbackQuery, lang: str, db: Storage) -> None:
-    markup = kb(
-        [icons.button(t(lang, "btn_refresh"), "refresh", callback_data="adm:stats")],
+    markup = keyboard(
+        [icons.button(t(lang, "btn_refresh"), "refresh", "primary", callback_data="adm:stats")],
         [icons.button(t(lang, "btn_back"), "back", callback_data="admin")],
     )
     await _edit(call, stats_text(lang, await db.stats()), markup)
@@ -120,60 +130,82 @@ async def cb_broadcast(call: CallbackQuery, lang: str, state: FSMContext) -> Non
 
 
 @router.message(StateFilter(AdminForm.broadcast), ~F.text.startswith("/"))
-async def on_broadcast_message(message: Message, lang: str, state: FSMContext, db: Storage) -> None:
-    await state.update_data(chat_id=message.chat.id, message_id=message.message_id)
+async def on_broadcast_message(message: Message, bot: Bot, lang: str, state: FSMContext, db: Storage) -> None:
+    """Любое сообщение как есть: текст с форматированием и премиум-эмодзи, фото, GIF, видео,
+    альбом. Рассылаем копию (copy_message), поэтому всё сохраняется, а пометки «переслано» нет."""
+    if message.media_group_id:
+        album = _albums.setdefault(message.media_group_id, [])
+        album.append(message.message_id)
+        if len(album) > 1:
+            return  # альбом соберёт обработчик первой части
+        await asyncio.sleep(ALBUM_WAIT)
+        message_ids = sorted(_albums.pop(message.media_group_id, album))
+    else:
+        message_ids = [message.message_id]
+
+    await state.update_data(chat_id=message.chat.id, message_ids=message_ids)
     targets = len(await db.broadcast_targets())
-    await message.copy_to(message.chat.id)
+    await bot.copy_messages(message.chat.id, message.chat.id, message_ids)  # превью ровно как у всех
     await message.answer(
         t(lang, "bc_confirm", n=targets),
-        reply_markup=kb(
+        reply_markup=keyboard(
             [icons.button(t(lang, "btn_bc_send", n=targets), "megaphone", "success", callback_data="adm:bc_go")],
             [icons.button(t(lang, "btn_cancel"), "cross", "danger", callback_data="admin")],
         ),
     )
 
 
-async def broadcast(bot: Bot, db: Storage, lang: str, admin_chat: int, from_chat: int, message_id: int) -> None:
+async def _deliver(bot: Bot, db: Storage, user_id: int, from_chat: int, message_ids: list[int]) -> bool:
+    for _ in range(3):
+        try:
+            if len(message_ids) == 1:
+                await bot.copy_message(user_id, from_chat, message_ids[0])
+            else:
+                await bot.copy_messages(user_id, from_chat, message_ids)
+            return True
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after + 1)
+        except TelegramForbiddenError:
+            await db.mark_blocked(user_id)
+            return False
+        except Exception as e:
+            log.warning("Рассылка: %s не получил сообщение: %s", user_id, e)
+            return False
+    return False
+
+
+async def broadcast(bot: Bot, db: Storage, lang: str, admin_chat: int, from_chat: int, message_ids: list[int]) -> None:
     targets = await db.broadcast_targets()
     status = await bot.send_message(admin_chat, t(lang, "bc_progress", done=0, total=len(targets), ok=0, fail=0))
-    ok = fail = 0
-    last = time.monotonic()
-    for index, user_id in enumerate(targets, 1):
-        for _ in range(3):
-            try:
-                await bot.copy_message(user_id, from_chat, message_id)
-                ok += 1
-                break
-            except TelegramRetryAfter as e:
-                await asyncio.sleep(e.retry_after + 1)
-            except TelegramForbiddenError:
-                await db.mark_blocked(user_id)
-                fail += 1
-                break
-            except Exception as e:
-                log.warning("Рассылка: %s не получил сообщение: %s", user_id, e)
-                fail += 1
-                break
-        if time.monotonic() - last > 3:
-            last = time.monotonic()
+    delivered = failed = 0
+    last_update = time.monotonic()
+    for start in range(0, len(targets), BROADCAST_BATCH):
+        batch = targets[start : start + BROADCAST_BATCH]
+        started = time.monotonic()
+        results = await asyncio.gather(*(_deliver(bot, db, user_id, from_chat, message_ids) for user_id in batch))
+        delivered += sum(results)
+        failed += len(results) - sum(results)
+        if time.monotonic() - last_update > 3:
+            last_update = time.monotonic()
             with suppress(TelegramBadRequest):
-                await status.edit_text(t(lang, "bc_progress", done=index, total=len(targets), ok=ok, fail=fail))
-        await asyncio.sleep(BROADCAST_DELAY)
+                done = start + len(batch)
+                await status.edit_text(t(lang, "bc_progress", done=done, total=len(targets), ok=delivered, fail=failed))
+        await asyncio.sleep(max(0.0, 1.0 - (time.monotonic() - started)))  # не больше пачки в секунду
     with suppress(TelegramBadRequest):
-        await status.edit_text(t(lang, "bc_done", ok=ok, fail=fail))
+        await status.edit_text(t(lang, "bc_done", ok=delivered, fail=failed))
 
 
 @router.callback_query(F.data == "adm:bc_go")
 async def cb_broadcast_go(call: CallbackQuery, bot: Bot, lang: str, state: FSMContext, db: Storage) -> None:
     data = await state.get_data()
     await state.clear()
-    if "message_id" not in data:
+    if "message_ids" not in data:
         await call.answer(t(lang, "expired"), show_alert=True)
         return
     await call.answer()
     with suppress(TelegramBadRequest):
         await call.message.edit_reply_markup(reply_markup=None)
-    task = asyncio.create_task(broadcast(bot, db, lang, call.message.chat.id, data["chat_id"], data["message_id"]))
+    task = asyncio.create_task(broadcast(bot, db, lang, call.message.chat.id, data["chat_id"], data["message_ids"]))
     _broadcast_tasks.add(task)
     task.add_done_callback(_broadcast_tasks.discard)
 
@@ -222,7 +254,8 @@ async def on_ban_target(message: Message, lang: str, state: FSMContext, db: Stor
 async def _show_banned(call: CallbackQuery, lang: str, db: Storage) -> None:
     ids = await db.banned_users()
     rows = [
-        [icons.button(f"{t(lang, 'btn_unban')} {uid}", "unlock", callback_data=f"adm:ub:{uid}")] for uid in ids[:30]
+        [icons.button(f"{t(lang, 'btn_unban')} {user_id}", "unlock", callback_data=f"adm:ub:{user_id}")]
+        for user_id in ids[:30]
     ]
     rows.append([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])
     text = t(lang, "banned_list", n=len(ids)) if ids else t(lang, "banned_empty")
@@ -255,10 +288,14 @@ async def _show_admins(call: CallbackQuery, lang: str, db: Storage, config: Conf
     for owner in sorted(config.admin_ids):
         lines.append(f"👑 {_who(owner, await db.username_of(owner))}")
     admins = await db.admins()
-    lines += [f"🛡 {_who(uid, name)}" for uid, name in admins] or [t(lang, "admins_empty")]
+    lines += [f"🛡 {_who(user_id, name)}" for user_id, name in admins] or [t(lang, "admins_empty")]
     rows = [
-        [icons.button(f"{t(lang, 'btn_remove')} {_who(uid, name)}", "trash", "danger", callback_data=f"adm:rm:{uid}")]
-        for uid, name in admins
+        [
+            icons.button(
+                f"{t(lang, 'btn_remove')} {_who(user_id, name)}", "trash", "danger", callback_data=f"adm:rm:{user_id}"
+            )
+        ]
+        for user_id, name in admins
     ]
     rows.append([icons.button(t(lang, "btn_add_admin"), "add", "success", callback_data="adm:add")])
     rows.append([icons.button(t(lang, "btn_back"), "back", callback_data="admin")])

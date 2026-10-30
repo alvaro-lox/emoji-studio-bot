@@ -14,16 +14,28 @@ from app.common.limits import Limits
 from app.common.middlewares import UserMiddleware
 from app.common.storage import Storage, TokenStore
 from app.config import load_config
+from app.nft import collage_handlers as collage
 from app.nft import handlers as nft
 from app.nft.service import GiftService
 from app.nft.watcher import watch_loop
+from app.photo import handlers as photo
+from app.photo.tools import has_neural_cutout
 from app.stickers.downloader import Downloader
 from app.stickers.handlers import content, maker, recolor
 
 log = logging.getLogger(__name__)
 
 # Порядок важен: команды и ожидание ввода (FSM) раньше общих обработчиков текста и медиа
-ROUTERS = (menu.router, admin.router, nft.router, recolor.router, content.router, maker.router)
+ROUTERS = (
+    menu.router,
+    admin.router,
+    nft.router,
+    collage.router,
+    recolor.router,
+    content.router,
+    photo.router,
+    maker.router,
+)
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 
@@ -37,7 +49,7 @@ async def main() -> None:
     db = Storage(config.data_dir / "bot.db")
     await db.open()
     http = aiohttp.ClientSession(headers={"User-Agent": USER_AGENT})
-    watcher: asyncio.Task | None = None
+    background: list[asyncio.Task] = []
 
     try:
         me = await bot.me()
@@ -48,7 +60,9 @@ async def main() -> None:
         gifts = GiftService(http, config)
         gifts.cleanup()
         limits = Limits(config.heavy_limit, config.heavy_window)
-        watcher = asyncio.create_task(watch_loop(bot, db, gifts, config.watch_interval))
+        background.append(asyncio.create_task(watch_loop(bot, db, gifts, config.watch_interval)))
+        # нейросеть для фона грузится секунд 20 — делаем это заранее, а не на первом фото
+        background.append(asyncio.create_task(asyncio.to_thread(has_neural_cutout)))
 
         dp = Dispatcher()
         dp.update.outer_middleware(UserMiddleware(db, config.admin_ids, limits))
@@ -65,8 +79,8 @@ async def main() -> None:
             allowed_updates=dp.resolve_used_update_types(),
         )
     finally:
-        if watcher:
-            watcher.cancel()
+        for task in background:
+            task.cancel()
         await http.close()
         await db.close()
         await bot.session.close()

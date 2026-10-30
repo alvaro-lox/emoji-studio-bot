@@ -25,7 +25,7 @@ from app.common.i18n import t
 from app.common.icons import icons
 from app.common.limits import Limits
 from app.common.storage import Storage
-from app.common.ui import heavy_ok, kb, menu_button_kb
+from app.common.ui import heavy_ok, keyboard, menu_button_kb
 from app.config import Config
 from app.nft.parser import GiftInfo, GiftNotFound
 from app.nft.render import GiftStyle, format_number
@@ -66,26 +66,28 @@ def gift_caption(info: GiftInfo, lang: str) -> str:
 
 
 def gift_kb(info: GiftInfo, variant: str, lang: str, watching: bool = False) -> InlineKeyboardMarkup:
+    """Кнопки под подарком. В каждой строке один стиль: действия синие, скачивание зелёное."""
     slug = info.slug
     toggle = None
     if info.has_backdrop:
         toggle = (
-            icons.button(t(lang, "btn_nobg"), "image", callback_data=f"g:n:{slug}")
+            icons.button(t(lang, "btn_nobg"), "image", "primary", callback_data=f"g:n:{slug}")
             if variant == "f"
-            else icons.button(t(lang, "btn_withbg"), "sparkles", callback_data=f"g:f:{slug}")
+            else icons.button(t(lang, "btn_withbg"), "sparkles", "primary", callback_data=f"g:f:{slug}")
         )
     style = icons.button(t(lang, "btn_style"), "brush", "primary", callback_data=f"gs:{slug}")
     watch = (
-        icons.button(t(lang, "btn_unwatch"), "bell_off", callback_data=f"uw:{slug}")
+        icons.button(t(lang, "btn_unwatch"), "bell_off", "primary", callback_data=f"uw:{slug}")
         if watching
-        else icons.button(t(lang, "btn_watch"), "bell", "danger", callback_data=f"w:{slug}")
+        else icons.button(t(lang, "btn_watch"), "bell", "primary", callback_data=f"w:{slug}")
     )
-    return kb(
+    return keyboard(
         [b for b in (toggle, style) if b],
         [
-            icons.button(t(lang, "btn_gif"), "gif", "success", callback_data=f"gif:{variant}:{slug}"),
-            icons.button(t(lang, "btn_tgs"), "sticker", "success", callback_data=f"tgs:{slug}"),
+            icons.button(t(lang, "btn_gif"), "gif", "primary", callback_data=f"gif:{variant}:{slug}"),
+            icons.button(t(lang, "btn_tgs"), "sticker", "primary", callback_data=f"tgs:{slug}"),
         ],
+        [icons.button(t(lang, "btn_gift_download"), "download", "success", callback_data=f"gdl:{slug}")],
         [watch],
         [icons.button(t(lang, "btn_open"), "link", url=info.link)],
     )
@@ -204,6 +206,27 @@ async def cb_tgs(call: CallbackQuery, lang: str, gifts: GiftService, db: Storage
         await call.message.answer(t(lang, "gift_failed"))
 
 
+@router.callback_query(F.data.startswith("gdl:"))
+async def cb_download_gift(
+    call: CallbackQuery, lang: str, gifts: GiftService, db: Storage, limits: Limits, is_admin: bool
+) -> None:
+    """Всё о подарке одним архивом: видео, модель, картинки, данные."""
+    slug = call.data.removeprefix("gdl:")
+    key = f"gzip:{slug.lower()}"
+    cached = await db.cache_get(key)
+    if not cached and not await heavy_ok(call, limits, lang, is_admin):
+        return
+    await call.answer(t(lang, "gift_download_wait"))
+    try:
+        document = cached or BufferedInputFile(await gifts.archive(slug), filename=f"{slug.lower()}.zip")
+        sent = await call.message.answer_document(document, caption=t(lang, "gift_download_done"))
+        if sent.document and not cached:
+            await db.cache_set(key, sent.document.file_id)
+    except Exception:
+        log.exception("Не удалось собрать архив подарка %s", slug)
+        await call.message.answer(t(lang, "gift_failed"))
+
+
 # ---------- оформление ----------
 
 
@@ -231,23 +254,27 @@ def style_kb(lang: str, slug: str, style: GiftStyle) -> InlineKeyboardMarkup:
     aspects = [
         icons.button(
             mark(t(lang, f"aspect_{code}"), style.aspect == aspect),
-            style="primary" if style.aspect == aspect else None,
+            style="success" if style.aspect == aspect else "primary",
             callback_data=f"ga:{code}:{slug}",
         )
         for code, aspect in ASPECT_CODES.items()
     ]
+
+    def choice(label: str, selected: bool, data: str, icon: str | None = None):
+        return icons.button(mark(label, selected), icon, "success" if selected else "primary", callback_data=data)
+
     background = (
-        icons.button(t(lang, "btn_bg_remove"), "trash", callback_data=f"gbr:{slug}")
+        icons.button(t(lang, "btn_bg_remove"), "trash", "danger", callback_data=f"gbr:{slug}")
         if style.background
-        else icons.button(t(lang, "btn_bg_custom"), "image", callback_data=f"gbg:{slug}")
+        else icons.button(t(lang, "btn_bg_custom"), "image", "primary", callback_data=f"gbg:{slug}")
     )
-    return kb(
+    return keyboard(
         aspects,
         [background],
-        [icons.button(mark(t(lang, "btn_text_custom"), style.text == "custom"), "edit", callback_data=f"gtx:{slug}")],
         [
-            icons.button(mark(t(lang, "btn_text_default"), style.text == "default"), callback_data=f"gdt:{slug}"),
-            icons.button(mark(t(lang, "btn_text_none"), style.text == "none"), callback_data=f"gnt:{slug}"),
+            choice(t(lang, "btn_text_default"), style.text == "default", f"gdt:{slug}"),
+            choice(t(lang, "btn_text_none"), style.text == "none", f"gnt:{slug}"),
+            choice(t(lang, "btn_text_custom"), style.text == "custom", f"gtx:{slug}", "edit"),
         ],
         [icons.button(t(lang, "btn_render"), "magic", "success", callback_data=f"gap:{slug}")],
         [icons.button(t(lang, "btn_close"), "cross", callback_data="close")],
@@ -366,7 +393,7 @@ async def cb_style_render(
         info = await gifts.info(slug)
         variant = "f" if info.has_backdrop else "n"
         result = await gifts.video(slug, variant, style)
-        markup = kb(
+        markup = keyboard(
             [icons.button(t(lang, "btn_style_again"), "brush", "primary", callback_data=f"gs:{slug}")],
             [icons.button(t(lang, "btn_open"), "link", url=info.link)],
         )

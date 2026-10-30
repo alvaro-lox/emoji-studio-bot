@@ -16,9 +16,10 @@ from app.common.storage import Storage
 from app.nft.parser import parse_gift_page
 from app.nft.render import GiftStyle, Layout, build_canvas, render_gift
 from app.nft.watcher import check_once
-from app.stickers.emoji_maker import first_emoji, fit, make_static, make_video, remove_background
+from app.photo import tools as photo_tools
+from app.stickers.emoji_maker import first_emoji, fit, make_static, make_video
 from app.stickers.packs import new_set_name, render_grid, set_link, user_pack_name
-from app.stickers.recolor import Tint, parse_hex, recolor_image, recolor_lottie, recolor_tgs
+from app.stickers.recolor import Tint, parse_color_spec, parse_hex, recolor_image, recolor_lottie, recolor_tgs
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -49,9 +50,36 @@ def test_tint_keeps_lightness_and_sets_hue():
     tint = Tint("#1E88E5")  # синий
     r, g, b = tint(1.0, 0.2, 0.2)  # был красный
     h, light, _ = colorsys.rgb_to_hls(r, g, b)
-    assert abs(h - tint.hue) < 0.01
+    assert abs(h - colorsys.rgb_to_hls(0x1E / 255, 0x88 / 255, 0xE5 / 255)[0]) < 0.01
     assert abs(light - colorsys.rgb_to_hls(1.0, 0.2, 0.2)[1]) < 0.01
     assert tint(1, 1, 1) == pytest.approx((1, 1, 1))  # белые блики остаются белыми
+
+
+def test_color_spec_parses_single_and_gradient():
+    assert parse_color_spec("ff8800") == "#FF8800"
+    assert parse_color_spec("#5b1a8c #ff8a3d") == "#5B1A8C-#FF8A3D"
+    assert parse_color_spec("#111111, #222222, #333333") is None
+    assert parse_color_spec("красный") is None
+
+
+def test_gradient_tint_maps_shadows_and_highlights_to_different_hues():
+    import colorsys
+
+    tint = Tint("#0000FF-#FF0000")  # тени синие, светлые места красные
+    dark = colorsys.rgb_to_hls(*tint(0.25, 0.25, 0.25))
+    light = colorsys.rgb_to_hls(*tint(0.8, 0.8, 0.8))
+    assert abs(dark[0] - 2 / 3) < 0.08  # синий
+    assert light[0] < 0.08 or light[0] > 0.92  # красный
+    assert abs(dark[1] - 0.25) < 0.01 and abs(light[1] - 0.8) < 0.01  # светлота сохранена
+
+
+def test_recolor_image_gradient_keeps_alpha():
+    image = Image.new("RGBA", (4, 1))
+    image.putdata([(0, 0, 0, 255), (90, 90, 90, 255), (200, 200, 200, 128), (255, 255, 255, 0)])
+    buf = io.BytesIO()
+    image.save(buf, "PNG")
+    out = Image.open(io.BytesIO(recolor_image(buf.getvalue(), "#0000FF-#FF0000", "PNG")))
+    assert [px[3] for px in out.getdata()] == [255, 255, 128, 0]
 
 
 def test_recolor_lottie_static_animated_and_gradient():
@@ -109,17 +137,30 @@ def test_first_emoji():
     assert first_emoji(None) is None
 
 
-def test_remove_background_and_fit():
+def test_flat_background_cutout_and_fit(monkeypatch):
+    monkeypatch.setattr(photo_tools, "_neural_mask", lambda image: None)  # без нейросети — заливка от краёв
     img = Image.new("RGB", (60, 40), (255, 255, 255))
     for x in range(20, 40):
         for y in range(10, 30):
             img.putpixel((x, y), (200, 0, 0))
-    cut = remove_background(img)
+    cut = photo_tools.cut_out(img)
+    assert cut.size == img.size  # разрешение не теряется
     assert cut.getpixel((0, 0))[3] == 0 and cut.getpixel((30, 20))[3] == 255
     fitted = fit(cut)
     assert fitted.size == (100, 100)
     assert fitted.getpixel((50, 50))[3] == 255  # объект растянут на весь квадрат
     assert fitted.getpixel((0, 0))[3] == 0
+
+
+def test_enhance_upscales_and_keeps_alpha():
+    image = Image.new("RGBA", (50, 30), (120, 80, 40, 255))
+    image.putpixel((0, 0), (0, 0, 0, 0))
+    buf = io.BytesIO()
+    image.save(buf, "PNG")
+    png, size = photo_tools.enhance(buf.getvalue())
+    out = Image.open(io.BytesIO(png))
+    assert size == (100, 60) and out.size == (100, 60)
+    assert out.mode == "RGBA" and out.getpixel((0, 0))[3] < 64
 
 
 def test_make_static_is_100px_png():
@@ -180,16 +221,16 @@ def test_render_grid():
 
 @pytest.mark.parametrize("aspect,size", [("3:2", (420, 280)), ("1:1", (360, 360)), ("9:16", (360, 640))])
 def test_layout_sizes(aspect, size):
-    lay = Layout.make(aspect, 1)
-    assert (lay.width, lay.height) == size
-    assert lay.width % 2 == 0 and lay.height % 2 == 0
+    layout = Layout.make(aspect, 1)
+    assert (layout.width, layout.height) == size
+    assert layout.width % 2 == 0 and layout.height % 2 == 0
 
 
 def test_default_style_matches_original_layout(info):
-    lay = Layout.make("3:2", 3)
-    _, x0, y0, size = build_canvas(info, None, GiftStyle(), lay, True, None)
-    assert (lay.k, lay.bx, lay.by) == (3, 0, 0)
-    assert (x0, y0, size) == (390, 90, 480)
+    layout = Layout.make("3:2", 3)
+    _, spot = build_canvas(info, None, GiftStyle(), layout, True, None)
+    assert (layout.block_scale, layout.block_left, layout.block_top) == (3, 0, 0)
+    assert (spot.left, spot.top, spot.size) == (390, 90, 480)
 
 
 def test_style_key():
@@ -358,3 +399,22 @@ def test_watcher_ignores_fallback_source(tmp_path, info):
 
     asyncio.run(scenario())
     info.source = "page"
+
+
+def test_broadcast_sends_albums_as_one_copy():
+    from app.admin.handlers import _deliver
+
+    class FakeBot:
+        def __init__(self):
+            self.calls = []
+
+        async def copy_message(self, chat_id, from_chat, message_id):
+            self.calls.append(("one", chat_id, message_id))
+
+        async def copy_messages(self, chat_id, from_chat, message_ids):
+            self.calls.append(("album", chat_id, tuple(message_ids)))
+
+    bot = FakeBot()
+    assert asyncio.run(_deliver(bot, None, 7, 1, [10])) is True
+    assert asyncio.run(_deliver(bot, None, 8, 1, [10, 11, 12])) is True
+    assert bot.calls == [("one", 7, 10), ("album", 8, (10, 11, 12))]

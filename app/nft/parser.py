@@ -186,9 +186,9 @@ def render_fragment_pattern(card_tgs: bytes, size: int = 512) -> bytes | None:
     finally:
         anim.lottie_animation_destroy()
     image = Image.frombytes("RGBa", frame.size, frame.tobytes()).convert("RGBA")
-    buf = io.BytesIO()
-    image.save(buf, "PNG")
-    return buf.getvalue()
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 async def fetch_from_fragment(session: aiohttp.ClientSession, slug: str) -> GiftInfo:

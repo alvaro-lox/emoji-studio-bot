@@ -18,12 +18,13 @@ from aiogram.types import (
 from app.common.i18n import LANGS, t
 from app.common.icons import icons
 from app.common.storage import MODES, Storage
-from app.common.ui import kb
+from app.common.ui import keyboard
 
 router = Router()
 
 SECTION_STICKERS = "sec:stickers"
 SECTION_GIFTS = "gifts"
+SECTION_PHOTO = "sec:photo"
 
 LANG_NAMES = {"ru": "🇷🇺 Русский", "en": "🇺🇸 English"}
 
@@ -33,10 +34,13 @@ def menu_text(lang: str) -> str:
 
 
 def menu_kb(lang: str, is_admin: bool = False) -> InlineKeyboardMarkup:
-    """Главное меню: два раздела (стикеры/эмодзи и NFT-подарки) и служебные кнопки."""
-    return kb(
+    """Главное меню: разделы (цветные) и служебные кнопки (без цвета) — в одной строке стиль один."""
+    return keyboard(
         [icons.button(t(lang, "btn_section_stickers"), "sticker", "primary", callback_data=SECTION_STICKERS)],
-        [icons.button(t(lang, "btn_gifts"), "gift", "success", callback_data=SECTION_GIFTS)],
+        [
+            icons.button(t(lang, "btn_gifts"), "gift", "primary", callback_data=SECTION_GIFTS),
+            icons.button(t(lang, "btn_section_photo"), "image", "primary", callback_data=SECTION_PHOTO),
+        ],
         [
             icons.button(t(lang, "btn_lang"), "globe", callback_data="lang"),
             icons.button(t(lang, "btn_help"), "info", callback_data="help"),
@@ -50,36 +54,39 @@ def stickers_text(lang: str, mode: str) -> str:
 
 
 def stickers_kb(lang: str, mode: str) -> InlineKeyboardMarkup:
-    """Раздел стикеров и эмодзи: режимы обработки (текущий отмечен) и создание своих эмодзи."""
+    """Раздел стикеров и эмодзи: режимы (выбранный — зелёный с галочкой) и свои эмодзи."""
 
-    def mode_button(value: str, icon: str, style: str) -> InlineKeyboardButton:
-        label = t(lang, f"btn_mode_{value}") + (" ✓" if mode == value else "")
-        return icons.button(label, icon, style, callback_data=f"mode:{value}")
+    def mode_button(value: str, icon: str) -> InlineKeyboardButton:
+        selected = mode == value
+        label = t(lang, f"btn_mode_{value}") + (" ✓" if selected else "")
+        return icons.button(label, icon, "success" if selected else "primary", callback_data=f"mode:{value}")
 
-    return kb(
-        [mode_button("id", "search", "primary"), mode_button("dl", "download", "success")],
-        [mode_button("color", "brush", "danger")],
+    return keyboard(
+        [mode_button("id", "search"), mode_button("dl", "download"), mode_button("color", "brush")],
         [
-            icons.button(t(lang, "btn_maker"), "magic", callback_data="maker"),
-            icons.button(t(lang, "btn_mypack"), "folder_add", callback_data="mypack"),
+            icons.button(t(lang, "btn_maker"), "magic", "primary", callback_data="maker"),
+            icons.button(t(lang, "btn_mypack"), "folder_add", "primary", callback_data="mypack"),
         ],
         [icons.button(t(lang, "btn_back"), "back", callback_data="menu")],
     )
 
 
 def gifts_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb(
-        [icons.button(t(lang, "btn_watches"), "bell", "primary", callback_data="watches")],
+    return keyboard(
+        [
+            icons.button(t(lang, "btn_collage"), "sparkles", "primary", callback_data="collage_help"),
+            icons.button(t(lang, "btn_watches"), "bell", "primary", callback_data="watches"),
+        ],
         [icons.button(t(lang, "btn_back"), "back", callback_data="menu")],
     )
 
 
 def back_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb([icons.button(t(lang, "btn_back"), "back", callback_data="menu")])
+    return keyboard([icons.button(t(lang, "btn_back"), "back", callback_data="menu")])
 
 
 def lang_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb(
+    return keyboard(
         [
             icons.button(LANG_NAMES[code], style="primary" if code == lang else None, callback_data=f"setlang:{code}")
             for code in LANGS
@@ -167,10 +174,23 @@ async def cb_gifts(call: CallbackQuery, lang: str) -> None:
     await call.answer()
 
 
+@router.callback_query(F.data == SECTION_PHOTO)
+async def cb_photo(call: CallbackQuery, lang: str) -> None:
+    await _edit(call, t(lang, "section_photo"), back_kb(lang))
+    await call.answer()
+
+
+@router.callback_query(F.data == "collage_help")
+async def cb_collage_help(call: CallbackQuery, lang: str) -> None:
+    markup = keyboard([icons.button(t(lang, "btn_back"), "back", callback_data=SECTION_GIFTS)])
+    await _edit(call, t(lang, "collage_help"), markup)
+    await call.answer()
+
+
 @router.callback_query(F.data == "maker")
 async def cb_maker(call: CallbackQuery, lang: str) -> None:
-    markup = kb(
-        [icons.button(t(lang, "btn_mypack"), "folder_add", "success", callback_data="mypack")],
+    markup = keyboard(
+        [icons.button(t(lang, "btn_mypack"), "folder_add", "primary", callback_data="mypack")],
         [icons.button(t(lang, "btn_back"), "back", callback_data=SECTION_STICKERS)],
     )
     await _edit(call, t(lang, "maker_help"), markup)

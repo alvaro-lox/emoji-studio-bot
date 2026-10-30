@@ -17,11 +17,11 @@ from app.common.i18n import t
 from app.common.icons import icons
 from app.common.limits import Limits
 from app.common.storage import Storage, TokenStore
-from app.common.ui import heavy_ok, kb
+from app.common.ui import heavy_ok, keyboard
 from app.stickers.core import ZipEntry, build_zips, safe_name, sticker_ext
 from app.stickers.downloader import MAX_ZIP_BYTES
 from app.stickers.packs import create_set, input_sticker, new_set_name, set_link, sticker_format
-from app.stickers.recolor import PRESETS, parse_hex, recolor_image, recolor_tgs
+from app.stickers.recolor import GRADIENTS, PRESETS, parse_color_spec, recolor_image, recolor_tgs
 from app.stickers.states import RecolorForm
 
 log = logging.getLogger(__name__)
@@ -30,16 +30,33 @@ router = Router()
 EMOJI_CHUNK = 200
 
 
+def color_spec(key: str) -> str | None:
+    """Цвет или градиент по ключу кнопки палитры."""
+    if key in PRESETS:
+        return PRESETS[key][0]
+    if key in GRADIENTS:
+        return GRADIENTS[key][0]
+    return None
+
+
+def color_label(lang: str, key: str) -> str:
+    return t(lang, f"color_{key}") if key in PRESETS or key in GRADIENTS else key
+
+
 def palette_kb(lang: str, token: str, extra: list | None = None) -> InlineKeyboardMarkup:
-    items = list(PRESETS.items())
-    rows = [
-        [
-            icons.button(f"{emoji} {t(lang, f'color_{key}')}", style=style, callback_data=f"rc:{key}:{token}")
-            for key, (_, emoji, style) in items[i : i + 2]
-        ]
-        for i in range(0, len(items), 2)
+    def pairs(buttons: list) -> list[list]:
+        return [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+
+    colors = [
+        icons.button(f"{emoji} {t(lang, f'color_{key}')}", callback_data=f"rc:{key}:{token}")
+        for key, (_, emoji, _) in PRESETS.items()
     ]
-    rows.append([icons.button(t(lang, "btn_color_hex"), "pipette", callback_data=f"rch:{token}")])
+    gradients = [
+        icons.button(f"{emoji} {t(lang, f'color_{key}')}", style="primary", callback_data=f"rc:{key}:{token}")
+        for key, (_, emoji) in GRADIENTS.items()
+    ]
+    rows = [*pairs(colors), *pairs(gradients)]
+    rows.append([icons.button(t(lang, "btn_color_hex"), "pipette", "success", callback_data=f"rch:{token}")])
     rows.extend(extra or [])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -67,12 +84,12 @@ async def _resolve(bot: Bot, target: dict) -> tuple[list, str, str | None]:
     return stickers, "Recolor", types.pop() if len(types) == 1 else None
 
 
-def _recolor_one(sticker, data: bytes, hex_color: str) -> tuple[bytes, bool]:
+def _recolor_one(sticker, data: bytes, spec: str) -> tuple[bytes, bool]:
     """(данные, перекрашено ли). Видео-стикеры оставляем как есть."""
     if sticker.is_animated:
-        return recolor_tgs(data, hex_color), True
+        return recolor_tgs(data, spec), True
     if not sticker.is_video:
-        return recolor_image(data, hex_color), True
+        return recolor_image(data, spec), True
     return data, False
 
 
@@ -84,7 +101,7 @@ async def run_recolor(
     lang: str,
     target: dict,
     target_token: str,
-    hex_color: str,
+    spec: str,
     color_name: str,
     tokens: TokenStore,
     blobs: TokenStore,
@@ -106,7 +123,7 @@ async def run_recolor(
     async def work(index: int, sticker):
         nonlocal done, last
         data = await download(bot, sticker.file_id, slots)
-        result = await asyncio.to_thread(_recolor_one, sticker, data, hex_color) if data else None
+        result = await asyncio.to_thread(_recolor_one, sticker, data, spec) if data else None
         done += 1
         if time.monotonic() - last > 2:
             last = time.monotonic()
@@ -119,20 +136,22 @@ async def run_recolor(
         await status.edit_text(t(lang, "recolor_failed"))
         return
     skipped = sum(1 for _, _, (_, changed) in results if not changed)
-    again = icons.button(t(lang, "btn_color_again"), "brush", callback_data=f"rcp:{target_token}")
+    again = icons.button(t(lang, "btn_color_again"), "brush", "primary", callback_data=f"rcp:{target_token}")
 
     if len(stickers) == 1:
         _, sticker, (data, _) = results[0]
         ext = sticker_ext(sticker)
         file_token = blobs.put({"data": data, "name": f"recolor_{color_name}.{ext}"})
-        markup = kb([icons.button(t(lang, "btn_file"), "file", callback_data=f"rcf:{file_token}"), again])
+        markup = keyboard(
+            [icons.button(t(lang, "btn_file"), "file", "primary", callback_data=f"rcf:{file_token}"), again]
+        )
         try:
             await bot.send_sticker(chat_id, BufferedInputFile(data, filename=f"sticker.{ext}"), reply_markup=markup)
         except TelegramBadRequest:  # эмодзи 100×100 стикером не отправить — шлём файлом
             await bot.send_document(
                 chat_id,
                 BufferedInputFile(data, filename=f"recolor_{color_name}.{ext}"),
-                reply_markup=kb([again]),
+                reply_markup=keyboard([again]),
                 disable_content_type_detection=True,
             )
     else:
@@ -142,7 +161,7 @@ async def run_recolor(
         if sticker_type:
             set_token = blobs.put(
                 {
-                    "title": f"{title} • {t(lang, f'color_{color_name}') if color_name in PRESETS else color_name}",
+                    "title": f"{title} • {color_label(lang, color_name)}",
                     "type": sticker_type,
                     "stickers": [
                         (data, sticker_format(s), [s.emoji] if s.emoji else None, f"{i}.{sticker_ext(s)}")
@@ -187,14 +206,15 @@ async def cb_recolor(
 ) -> None:
     _, key, token = ([*call.data.split(":", 2), "", ""])[:3]
     target = tokens.get(token)
-    if key not in PRESETS or not target:
+    spec = color_spec(key)
+    if not spec or not target:
         await call.answer(t(lang, "expired"), show_alert=True)
         return
     if not await heavy_ok(call, limits, lang, is_admin):
         return
     await call.answer(t(lang, "recolor_toast"))
     await run_recolor(
-        call, bot, call.message.chat.id, call.from_user.id, lang, target, token, PRESETS[key][0], key, tokens, blobs, db
+        call, bot, call.message.chat.id, call.from_user.id, lang, target, token, spec, key, tokens, blobs, db
     )
 
 
@@ -222,8 +242,8 @@ async def on_recolor_hex(
     limits: Limits,
     is_admin: bool,
 ) -> None:
-    hex_color = parse_hex(message.text or "")
-    if not hex_color:
+    spec = parse_color_spec(message.text or "")
+    if not spec:
         await message.answer(t(lang, "ask_hex"))
         return
     token = (await state.get_data()).get("token", "")
@@ -242,8 +262,8 @@ async def on_recolor_hex(
         lang,
         target,
         token,
-        hex_color,
-        hex_color.lstrip("#").lower(),
+        spec,
+        spec.replace("#", "").lower(),
         tokens,
         blobs,
         db,
@@ -306,7 +326,7 @@ async def cb_make_pack(
     with suppress(TelegramBadRequest):
         await status.edit_text(
             t(lang, "pack_created", title=escape(blob["title"][:64]), n=added),
-            reply_markup=kb(
+            reply_markup=keyboard(
                 [icons.button(t(lang, "btn_open_pack"), "archive", "success", url=set_link(name, blob["type"]))]
             ),
         )

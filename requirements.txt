@@ -6,3 +6,5 @@ rlottie-python>=1.3
 Pillow>=10.1
 numpy>=1.26
 imageio-ffmpeg>=0.5
+rembg>=2.0.60  # удаление фона нейросетью (модель скачается при первом запуске)
+onnxruntime>=1.18
